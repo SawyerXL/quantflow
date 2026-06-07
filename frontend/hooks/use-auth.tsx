@@ -56,13 +56,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const API_URL =
-        typeof window !== "undefined" && window.location.hostname === "localhost"
+        process.env.NEXT_PUBLIC_API_URL ||
+        (typeof window !== "undefined" && window.location.hostname === "localhost"
           ? "http://localhost:8000/api/v1"
-          : "/api/v1";
+          : "/api/v1");
+
+      // Short timeout — don't block page load on cold Render startup
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const res = await fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const json = await res.json();
         const data = json.data ?? json;
@@ -79,8 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("refresh");
         setUser(null);
       }
-    } catch {
-      // Network error — keep current state
+    } catch (err: any) {
+      // Timeout or network error — keep token but defer API call
+      // User can still browse static pages; auth checked on Run Backtest
+      if (err?.name !== "AbortError") {
+        console.debug("Auth check failed, deferring");
+      }
     } finally {
       setLoading(false);
     }
