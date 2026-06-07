@@ -1,13 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-
-// Static export: pre-render the route shell
-export function generateStaticParams() {
-  return [{ id: "demo" }];
-}
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -486,7 +481,7 @@ function TradesTable({ trades }: { trades: TradeRecord[] }) {
 // ============================================================================
 
 export default function ResultPage() {
-  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const chartRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<BacktestData | null>(null);
@@ -500,7 +495,7 @@ export default function ResultPage() {
     async function fetchData() {
       const token = localStorage.getItem("token");
       try {
-        const res = await fetch(`${API_URL}/backtest/${params.id}`, {
+        const res = await fetch(`${API_URL}/backtest/${searchParams.get("id") || "demo"}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
@@ -514,7 +509,7 @@ export default function ResultPage() {
       }
     }
     fetchData();
-  }, [params.id]);
+  }, [searchParams.get("id") || "demo"]);
 
   // Lightweight Charts
   useEffect(() => {
@@ -618,12 +613,12 @@ export default function ResultPage() {
 
   // Share link
   const handleShare = useCallback(() => {
-    const link = `${window.location.origin}/share/backtest/${params.id}`;
+    const link = `${window.location.origin}/share/backtest/${searchParams.get("id") || "demo"}`;
     setShareLink(link);
     navigator.clipboard.writeText(link).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [params.id]);
+  }, [searchParams.get("id") || "demo"]);
 
   // Loading state
   if (loading) return <PageSkeleton />;

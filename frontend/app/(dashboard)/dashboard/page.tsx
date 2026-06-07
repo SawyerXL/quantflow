@@ -242,7 +242,7 @@ export default function DashboardPage() {
             {stats.recent.map((r) => (
               <Link
                 key={r.id}
-                href={`/results/${r.id}`}
+                href={`/results?id=${r.id}`}
                 className="flex items-center justify-between rounded-xl border border-white/[0.04] bg-[#111] px-5 py-4 transition-all hover:border-white/[0.1] hover:bg-[#161616]"
               >
                 <div className="flex items-center gap-4">

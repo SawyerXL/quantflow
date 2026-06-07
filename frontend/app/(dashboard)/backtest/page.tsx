@@ -920,7 +920,7 @@ export default function BacktestPage() {
 
       if (res.ok && data.success) {
         const id = data.data?.id;
-        router.push(`/results/${id}`);
+        router.push(`/results?id=${id}`);
       } else {
         const detail = data?.error ?? data?.detail ?? {};
         const msg = detail?.message ?? detail ?? "Backtest failed";
