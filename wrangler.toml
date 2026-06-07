@@ -1,5 +1,0 @@
-pages_build_output_dir = ".next"
-
-[vars]
-NEXT_PUBLIC_API_URL = "https://quantflow-v3q5.onrender.com/api/v1"
-CI = "true"
