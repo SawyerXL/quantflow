@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useBacktestStore } from "@/stores/backtest-store";
 import type { DataSource, StrategyType } from "@/stores/backtest-store";
+import { API_URL } from "@/lib/api";
 
 // ============================================================================
 // Helpers
@@ -768,7 +769,7 @@ export default function BacktestPage() {
       // CSV upload goes here when backend supports it
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/backtest/run`,
+        `${API_URL}/backtest/run`,
         { method: "POST", body },
       );
 

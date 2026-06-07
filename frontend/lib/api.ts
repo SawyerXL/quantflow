@@ -1,9 +1,13 @@
 // On Vercel: use relative paths, proxied through vercel.json rewrites
 // On local dev: use absolute localhost URL
-const API_URL =
-  typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "/api/v1" // Vercel proxy rewrites /api/* → Render
-    : "http://localhost:8000/api/v1";
+function resolveApiUrl(): string {
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return "http://localhost:8000/api/v1";
+  }
+  // Production (Vercel proxy) or SSR: use relative path
+  return "/api/v1";
+}
+export const API_URL = resolveApiUrl();
 
 // Render free tier spins down after 15 min of inactivity.
 // Cold start can take 30+ seconds — we retry up to 3 times with a long timeout.

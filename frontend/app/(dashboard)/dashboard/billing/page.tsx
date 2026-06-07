@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { API_URL } from "@/lib/api";
 import { useSearchParams } from "next/navigation";
 import {
   Check,
@@ -197,7 +198,7 @@ function BillingPageInner() {
   const fetchSub = useCallback(async () => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/billing/subscription`,
+        `${API_URL}/billing/subscription`,
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } },
       );
       if (res.ok) {
@@ -232,7 +233,7 @@ function BillingPageInner() {
     try {
       const period = isYearly ? "yearly" : "monthly";
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/billing/checkout`,
+        `${API_URL}/billing/checkout`,
         {
           method: "POST",
           headers: {
@@ -260,7 +261,7 @@ function BillingPageInner() {
     setPortalLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/billing/portal`,
+        `${API_URL}/billing/portal`,
         {
           method: "POST",
           headers: {

@@ -17,6 +17,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useCountUp } from "@/hooks/use-count-up";
+import { API_URL } from "@/lib/api";
 
 // ============================================================================
 // Types
@@ -494,7 +495,7 @@ export default function ResultPage() {
     async function fetchData() {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/backtest/${params.id}`,
+          `${API_URL}/backtest/${params.id}`,
         );
         if (res.ok) {
           const json = await res.json();
