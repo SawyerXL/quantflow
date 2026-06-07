@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 # ── Error codes ──────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ ERROR_CODES = {
 def success_response(data: Any = None, status_code: int = 200) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
-        content={"success": True, "data": data},
+        content=jsonable_encoder({"success": True, "data": data}),
     )
 
 
@@ -49,10 +50,10 @@ def error_response(
     status = status_code or ERROR_CODES.get(code, 500)
     return JSONResponse(
         status_code=status,
-        content={
+        content=jsonable_encoder({
             "success": False,
             "error": {"code": code, "message": message, "details": details},
-        },
+        }),
     )
 
 
