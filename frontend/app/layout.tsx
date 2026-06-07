@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: "QuantFlow — Quantitative Backtesting Platform",
   description:
     "Build, test, and deploy algorithmic trading strategies with institutional-grade tools.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

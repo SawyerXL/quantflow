@@ -14,7 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.models import User, Strategy, BacktestResult  # noqa: F401 — register models
-from app.api.routes import auth, backtest, data, billing
+from app.api.routes import auth, backtest, data, billing, dashboard
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -134,6 +134,7 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["
 app.include_router(backtest.router, prefix=f"{settings.API_V1_PREFIX}/backtest", tags=["Backtest"])
 app.include_router(data.router, prefix=f"{settings.API_V1_PREFIX}/data", tags=["Data"])
 app.include_router(billing.router, prefix=f"{settings.API_V1_PREFIX}/billing", tags=["Billing"])
+app.include_router(dashboard.router, prefix=f"{settings.API_V1_PREFIX}/dashboard", tags=["Dashboard"])
 
 
 @app.get("/health")
