@@ -493,19 +493,17 @@ export default function ResultPage() {
   // Fetch
   useEffect(() => {
     async function fetchData() {
+      const token = localStorage.getItem("token");
       try {
-        const res = await fetch(
-          `${API_URL}/backtest/${params.id}`,
-        );
+        const res = await fetch(`${API_URL}/backtest/${params.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (res.ok) {
           const json = await res.json();
           setData(json.data ?? json);
-        } else {
-          // Use mock data for development
-          setData(generateMockData());
         }
       } catch {
-        setData(generateMockData());
+        // Network error - keep loading skeleton
       } finally {
         setLoading(false);
       }

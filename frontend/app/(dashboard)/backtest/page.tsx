@@ -873,35 +873,44 @@ export default function BacktestPage() {
   const router = useRouter();
   const store = useBacktestStore();
 
+  const [btError, setBtError] = useState("");
+
   const handleRun = useCallback(async () => {
+    setBtError("");
     store.setIsRunning(true);
     try {
+      const token = localStorage.getItem("token");
       const body = new FormData();
       body.append("strategy_type", store.strategyType);
       body.append("strategy_params", JSON.stringify(store.strategyParams));
       body.append("initial_capital", String(store.runSettings.initialCapital));
       body.append("commission", String(store.runSettings.commission));
       body.append("name", store.runSettings.backtestName || "");
+      body.append("start_date", store.ticker.startDate);
+      body.append("end_date", store.ticker.endDate);
 
       if (store.dataSource === "ticker") {
         body.append("ticker", store.ticker.symbol);
-        body.append("start_date", store.ticker.startDate);
-        body.append("end_date", store.ticker.endDate);
       }
-      // CSV upload goes here when backend supports it
 
-      const res = await fetch(
-        `${API_URL}/backtest/run`,
-        { method: "POST", body },
-      );
+      const res = await fetch(`${API_URL}/backtest/run-sync`, {
+        method: "POST",
+        body,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
 
-      if (res.ok) {
-        const data = await res.json();
-        const id = data.data?.id ?? data.id;
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const id = data.data?.id;
         router.push(`/results/${id}`);
+      } else {
+        const detail = data?.error ?? data?.detail ?? {};
+        const msg = detail?.message ?? detail ?? "Backtest failed";
+        setBtError(typeof msg === "string" ? msg : JSON.stringify(msg));
       }
-    } catch (err) {
-      console.error("Backtest failed", err);
+    } catch (err: any) {
+      setBtError(err.message || "Network error. Please check your connection.");
     } finally {
       store.setIsRunning(false);
     }
@@ -941,6 +950,14 @@ export default function BacktestPage() {
             {store.currentStep === 2 && <StrategySelectStep />}
             {store.currentStep === 3 && <StrategyParamsStep />}
             {store.currentStep === 4 && <RunSettingsStep />}
+
+            {/* Error banner */}
+            {btError && store.currentStep === 4 && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {btError}
+              </div>
+            )}
 
             {/* Navigation buttons */}
             <div className="mt-8 flex items-center justify-between border-t border-white/[0.04] pt-6">
