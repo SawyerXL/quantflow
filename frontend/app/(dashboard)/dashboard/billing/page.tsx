@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Check,
@@ -179,7 +179,7 @@ function Toast({
 // Page
 // ============================================================================
 
-export default function BillingPage() {
+function BillingPageInner() {
   const searchParams = useSearchParams();
   const [sub, setSub] = useState<SubscriptionInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -577,5 +577,13 @@ export default function BillingPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <BillingPageInner />
+    </Suspense>
   );
 }
