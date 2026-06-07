@@ -99,7 +99,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [fetchUser],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    // Best-effort server-side logout (token blacklisting for future)
+    if (token) {
+      try {
+        const API_URL =
+          typeof window !== "undefined" && window.location.hostname === "localhost"
+            ? "http://localhost:8000/api/v1"
+            : "/api/v1";
+        await fetch(`${API_URL}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // Even if the server call fails, clear local state
+      }
+    }
     localStorage.removeItem("token");
     localStorage.removeItem("refresh");
     setUser(null);

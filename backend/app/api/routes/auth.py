@@ -138,6 +138,16 @@ async def refresh(
     )
 
 
+@router.post("/logout")
+async def logout(
+    current_user: User = Depends(get_current_user),
+):
+    """Logout — client should discard tokens. Server-side blacklist optional."""
+    # In production: add token to Redis blacklist with TTL = remaining validity.
+    # For now, client-side token removal is sufficient.
+    return success_response(data={"message": "Signed out successfully"})
+
+
 @router.get("/me")
 async def get_me(
     current_user: User = Depends(get_current_user),
