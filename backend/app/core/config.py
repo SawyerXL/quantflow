@@ -1,6 +1,10 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
+
+# Resolve .env relative to the project root (parent of this file: core → app → backend → quantflow)
+_ENV_FILE = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -60,7 +64,7 @@ class Settings(BaseSettings):
     ALPHA_VANTAGE_API_KEY: str = ""
     POLYGON_API_KEY: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8"}
 
 
 @lru_cache()
