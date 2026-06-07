@@ -4,24 +4,23 @@ Auth utilities: password hashing, JWT access + refresh tokens.
 
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ACCESS_TOKEN_EXPIRE = timedelta(hours=24)
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 def _create_token(subject: str, expires_delta: timedelta, token_type: str) -> str:

@@ -11,7 +11,7 @@ psycopg2-binary>=2.9.9,<3
 
 # Auth
 python-jose[cryptography]>=3.3.0,<4
-passlib[bcrypt]>=1.7.4,<2
+bcrypt>=4.0,<5
 email-validator>=2.1.0,<3
 
 # Backtesting (pure pandas/numpy — no vectorbt)
