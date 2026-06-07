@@ -8,6 +8,7 @@ GET  /api/v1/auth/me        — current user profile
 """
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,9 +144,109 @@ async def logout(
     current_user: User = Depends(get_current_user),
 ):
     """Logout — client should discard tokens. Server-side blacklist optional."""
-    # In production: add token to Redis blacklist with TTL = remaining validity.
-    # For now, client-side token removal is sufficient.
     return success_response(data={"message": "Signed out successfully"})
+
+
+# ── Forgot / Reset password ──────────────────────────────────────────────────
+
+# In-memory token store (fallback when Redis/Upstash is unavailable)
+_reset_tokens: dict[str, tuple[str, float]] = {}
+
+
+async def _store_reset_token(token: str, user_id: str, ttl: int = 600):
+    """Store a password reset token with TTL (seconds)."""
+    import time
+    try:
+        from app.core.cache import redis_cache
+        await redis_cache.set(f"pwd_reset:{token}", user_id, ttl=ttl)
+    except Exception:
+        _reset_tokens[token] = (user_id, time.time() + ttl)
+
+
+async def _get_and_delete_reset_token(token: str) -> str | None:
+    """Get user_id for a reset token, then delete it (one-time use)."""
+    import time
+    try:
+        from app.core.cache import redis_cache
+        val = await redis_cache.get(f"pwd_reset:{token}")
+        if val:
+            await redis_cache.delete(f"pwd_reset:{token}")
+            return val
+        return None
+    except Exception:
+        entry = _reset_tokens.pop(token, None)
+        if entry and time.time() < entry[1]:
+            return entry[0]
+        return None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Request a password reset email. Always returns the same response
+    regardless of whether the email exists (prevents enumeration)."""
+    import secrets
+
+    result = await db.execute(select(User).where(User.email == body.email.strip().lower()))
+    user = result.scalar_one_or_none()
+
+    if user:
+        token = secrets.token_urlsafe(32)
+        await _store_reset_token(token, str(user.id), ttl=600)
+
+        reset_url = f"https://quantflow-two.vercel.app/reset-password?token={token}"
+        try:
+            from app.services.email_service import send_reset_email
+            await send_reset_email(user.email, user.full_name or "", reset_url)
+        except Exception:
+            pass  # Email failure shouldn't reveal user existence
+
+    return success_response(
+        data={"message": "If this email exists, you will receive a reset link shortly."}
+    )
+
+
+@router.post("/reset-password")
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Complete password reset using the token from email."""
+    # Validate password strength
+    pwd = body.new_password
+    if len(pwd) < 8:
+        raise error_http("validation.error", "Password must be at least 8 characters", status_code=422)
+    if not any(c.isalpha() for c in pwd):
+        raise error_http("validation.error", "Password must contain at least one letter", status_code=422)
+    if not any(c.isdigit() for c in pwd):
+        raise error_http("validation.error", "Password must contain at least one digit", status_code=422)
+
+    # Verify token
+    user_id = await _get_and_delete_reset_token(body.token.strip())
+    if not user_id:
+        raise error_http("auth.token_expired", "Invalid or expired reset link. Please request a new one.", status_code=400)
+
+    # Update password
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise error_http("resource.not_found", "User not found", status_code=404)
+
+    user.hashed_password = hash_password(pwd)
+    await db.commit()
+
+    return success_response(data={"message": "Password reset successful. You can now sign in with your new password."})
 
 
 @router.get("/me")

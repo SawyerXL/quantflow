@@ -85,6 +85,34 @@ async def send_payment_failed_email(email: str) -> None:
     await _send(email, "Payment failed — update your billing info", html)
 
 
+async def send_reset_email(email: str, name: str, reset_url: str) -> None:
+    """Send a password reset email."""
+    name_display = name or "there"
+    html = f"""
+    <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="color: #18181b;">Reset your password</h2>
+      <p style="color: #52525b; font-size: 16px; line-height: 1.6;">
+        Hi {name_display},
+      </p>
+      <p style="color: #52525b; font-size: 16px; line-height: 1.6;">
+        Click the button below to reset your password.
+        This link expires in <strong>10 minutes</strong>.
+      </p>
+      <a href="{reset_url}"
+         style="display: inline-block; background: #10b981; color: #000;
+                font-weight: 600; padding: 14px 28px; border-radius: 8px;
+                text-decoration: none; margin: 16px 0;">
+        Reset Password
+      </a>
+      <p style="color: #a1a1aa; font-size: 13px; margin-top: 24px;">
+        If you didn't request this, you can safely ignore this email.<br/>
+        This link will expire in 10 minutes and can only be used once.
+      </p>
+    </div>
+    """
+    await _send(email, "Reset your QuantFlow password", html)
+
+
 async def _send(to: str, subject: str, html: str) -> None:
     """Low-level email sender via Resend API."""
     api_key = settings.RESEND_API_KEY
