@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+
+// Static export: pre-render the route shell
+export function generateStaticParams() {
+  return [{ id: "demo" }];
+}
 import {
   ArrowLeft,
   ArrowUpRight,
