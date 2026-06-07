@@ -57,10 +57,13 @@ async def register(
     db.add(user)
     await db.flush()
 
-    # Try to create a Stripe customer (non-blocking)
-    customer_id = await create_customer(body.email, body.full_name or "")
-    if customer_id:
-        user.stripe_customer_id = customer_id
+    # Try to create a Stripe customer (best-effort, don't block registration)
+    try:
+        customer_id = await create_customer(body.email, body.full_name or "")
+        if customer_id:
+            user.stripe_customer_id = customer_id
+    except Exception:
+        pass  # Stripe not configured — register anyway
 
     await db.commit()
     await db.refresh(user)
