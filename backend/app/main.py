@@ -98,7 +98,7 @@ class UnifiedErrorMiddleware(BaseHTTPMiddleware):
                     },
                 }
             return JSONResponse(status_code=exc.status_code, content=body)
-        except Exception:
+        except Exception as exc:
             logger.exception("Unhandled exception on %s %s", request.method, request.url)
             return JSONResponse(
                 status_code=500,
@@ -106,7 +106,7 @@ class UnifiedErrorMiddleware(BaseHTTPMiddleware):
                     "success": False,
                     "error": {
                         "code": "server.error",
-                        "message": "An unexpected error occurred. Please try again later.",
+                        "message": f"{type(exc).__name__}: {exc}",
                     },
                 },
             )

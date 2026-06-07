@@ -19,30 +19,22 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
-
-# Override sqlalchemy.url from config with the actual settings value
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-
 target_metadata = Base.metadata
+
+# Store URL in a variable to avoid config parser interpolation issues with %
+_migration_url = settings.DATABASE_URL
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    Configures the context with just a URL and not an Engine.
-    Calls to context.execute() here emit the given string to the
-    script output.
-    """
-    url = config.get_main_option("sqlalchemy.url")
+    """Run migrations in 'offline' mode."""
     context.configure(
-        url=url,
+        url=_migration_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
@@ -61,8 +53,12 @@ def do_run_migrations(connection):
 async def run_migrations_online() -> None:
     """Run migrations in 'online' mode using an async engine."""
     connectable = create_async_engine(
-        settings.DATABASE_URL,
+        _migration_url,
         poolclass=pool.NullPool,
+        connect_args={
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+        },
     )
 
     async with connectable.connect() as connection:
