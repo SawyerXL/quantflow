@@ -24,11 +24,5 @@
       ]
     }
   ],
-  "redirects": [
-    {
-      "source": "/login",
-      "destination": "/(auth)/login",
-      "permanent": true
-    }
-  ]
+  "redirects": []
 }
