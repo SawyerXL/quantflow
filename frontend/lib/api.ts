@@ -1,10 +1,22 @@
-// On Vercel: use relative paths, proxied through vercel.json rewrites
-// On local dev: use absolute localhost URL
+// Resolve API URL:
+// 1. env var → explicit override (Cloudflare Pages, Netlify, etc.)
+// 2. localhost → local dev
+// 3. vercel.app → relative path (Vercel proxy via vercel.json rewrites)
+// 4. other production → relative path (Cloudflare Pages with proxy, or absolute via env)
 function resolveApiUrl(): string {
+  // Explicit env var takes priority
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
+  }
+  // Local dev
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
     return "http://localhost:8000/api/v1";
   }
-  // Production (Vercel proxy) or SSR: use relative path
+  // Vercel — uses vercel.json rewrites to proxy /api/* → Render
+  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
+    return "/api/v1";
+  }
+  // Cloudflare Pages or other — assume /api/v1 proxies exist or use env var
   return "/api/v1";
 }
 export const API_URL = resolveApiUrl();
