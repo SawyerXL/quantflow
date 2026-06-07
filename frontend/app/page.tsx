@@ -5,6 +5,7 @@ import {
   AnimateItem,
   AnimateStagger,
 } from "@/components/landing/animate-section";
+import { StartForFreeLink } from "@/components/landing/auth-aware-link";
 
 // ============================================================================
 // SEO Metadata
@@ -270,15 +271,12 @@ function Hero() {
 
               <AnimateItem>
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-                  <Link
-                    href="/register"
-                    className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-8 py-3.5 text-base font-semibold text-black shadow-lg shadow-emerald-500/25 transition-all hover:from-emerald-400 hover:to-emerald-300 hover:shadow-emerald-500/40"
-                  >
+                  <StartForFreeLink className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-8 py-3.5 text-base font-semibold text-black shadow-lg shadow-emerald-500/25 transition-all hover:from-emerald-400 hover:to-emerald-300 hover:shadow-emerald-500/40">
                     Start for Free
                     <svg className="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
                     </svg>
-                  </Link>
+                  </StartForFreeLink>
                   <a
                     href="#demo"
                     className="inline-flex items-center justify-center rounded-xl border border-zinc-700 px-8 py-3.5 text-base font-medium text-zinc-300 transition-all hover:border-zinc-500 hover:text-white"
@@ -560,15 +558,12 @@ function CTA() {
         </AnimateItem>
         <AnimateItem>
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-10 py-4 text-base font-semibold text-black shadow-lg shadow-emerald-500/25 transition-all hover:from-emerald-400 hover:to-emerald-300"
-            >
+            <StartForFreeLink className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-10 py-4 text-base font-semibold text-black shadow-lg shadow-emerald-500/25 transition-all hover:from-emerald-400 hover:to-emerald-300">
               Get Started Free
               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
               </svg>
-            </Link>
+            </StartForFreeLink>
             <a
               href="#demo"
               className="inline-flex items-center rounded-xl border border-zinc-700 px-10 py-4 text-base font-medium text-zinc-300 transition-all hover:border-zinc-500 hover:text-white"

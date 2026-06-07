@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,9 +36,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Store token and redirect
-        localStorage.setItem("token", data.data.access_token);
-        localStorage.setItem("refresh", data.data.refresh_token);
+        await auth.login(data.data.access_token, data.data.refresh_token);
         router.push("/dashboard");
       } else {
         const detail = data?.error ?? data?.detail ?? {};

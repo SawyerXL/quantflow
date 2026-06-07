@@ -21,6 +21,8 @@ import {
 import { useBacktestStore } from "@/stores/backtest-store";
 import type { DataSource, StrategyType } from "@/stores/backtest-store";
 import { API_URL } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
+import { AuthModal } from "@/components/ui/auth-modal";
 
 // ============================================================================
 // Helpers
@@ -872,11 +874,26 @@ function DemoChart() {
 export default function BacktestPage() {
   const router = useRouter();
   const store = useBacktestStore();
-
+  const auth = useAuth();
   const [btError, setBtError] = useState("");
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleRun = useCallback(async () => {
     setBtError("");
+
+    // Step 1: Check auth
+    if (!auth.isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    // Step 2: Check daily limit
+    if (auth.user && auth.user.plan === "free" && auth.user.backtest_count_today >= 5) {
+      setBtError("Daily backtest limit reached (5/day). Upgrade to Pro for unlimited backtests.");
+      return;
+    }
+
+    // Step 3: Run backtest
     store.setIsRunning(true);
     try {
       const token = localStorage.getItem("token");
@@ -1004,6 +1021,12 @@ export default function BacktestPage() {
         {/* Right: Preview */}
         <PreviewPanel />
       </div>
+
+      {/* Auth modal — shown when unauthenticated user clicks Run */}
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }
