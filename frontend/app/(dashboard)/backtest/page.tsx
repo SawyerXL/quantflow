@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, useRef, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -210,48 +210,141 @@ function TickerPanel() {
 function CSVPanel() {
   const store = useBacktestStore();
   const preview = store.csvPreview;
+  const [dragOver, setDragOver] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [parseError, setParseError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function parseCSV(text: string) {
+    try {
+      const lines = text.trim().split("\n");
+      if (lines.length < 2) throw new Error("CSV file has no data rows");
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+      const rows: string[][] = [];
+      for (let i = 1; i < Math.min(lines.length, 6); i++) {
+        rows.push(lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
+      }
+      const closeIdx = headers.findIndex((h) => h.toLowerCase() === "close");
+      const dateIdx = headers.findIndex((h) =>
+        ["date", "datetime", "time", "timestamp"].includes(h.toLowerCase()),
+      );
+
+      const valid = closeIdx >= 0;
+      const errors: string[] = [];
+      if (!valid) errors.push("Missing 'close' price column");
+      if (dateIdx < 0) errors.push("Missing date column");
+
+      store.setCSVPreview({
+        columns: headers,
+        rows: rows.map((r) => {
+          const obj: Record<string, string> = {};
+          headers.forEach((h, i) => (obj[h] = r[i] ?? ""));
+          return obj;
+        }),
+        rowCount: lines.length - 1,
+        valid,
+        errors,
+      });
+      setParseError("");
+    } catch (e: any) {
+      setParseError(e.message || "Failed to parse CSV");
+    }
+  }
+
+  function handleFile(file: File) {
+    setParseError("");
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setParseError("Only CSV files are supported");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setParseError("File too large (max 50 MB)");
+      return;
+    }
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => parseCSV(reader.result as string);
+    reader.onerror = () => setParseError("Failed to read file");
+    reader.readAsText(file);
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleFile(file);
+  }
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    setDragOver(true);
+  }
 
   return (
     <div className="space-y-4">
       {/* Drop zone */}
-      <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-white/[0.08] bg-[#0f0f0f] p-10 text-center transition-all hover:border-emerald-500/30 hover:bg-[#121212]">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10">
-          <Upload className="h-6 w-6 text-emerald-400" />
+      <div
+        onDragOver={handleDragOver}
+        onDragEnter={() => setDragOver(true)}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-10 text-center transition-all ${
+          dragOver
+            ? "border-emerald-500/60 bg-emerald-500/[0.08]"
+            : "border-white/[0.08] bg-[#0f0f0f] hover:border-emerald-500/30 hover:bg-[#121212]"
+        }`}
+      >
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-xl transition-all ${
+            dragOver ? "bg-emerald-500/30" : "bg-emerald-500/10"
+          }`}
+        >
+          <Upload className={`h-6 w-6 ${dragOver ? "text-emerald-300" : "text-emerald-400"}`} />
         </div>
         <div>
-          <p className="text-sm font-medium text-zinc-300">
-            Drag & drop your CSV file here
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            or click to browse. Max 50MB.
-          </p>
+          {fileName ? (
+            <>
+              <p className="text-sm font-medium text-emerald-400">{fileName}</p>
+              <p className="mt-1 text-xs text-zinc-500">Click or drop to replace</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-zinc-300">
+                Drag & drop your CSV file here
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                or click to browse. Max 50MB.
+              </p>
+            </>
+          )}
         </div>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".csv"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) {
-              // Simulate CSV parsing (actual parsing happens server-side)
-              store.setCSVPreview({
-                columns: ["date", "open", "high", "low", "close", "volume"],
-                rows: [],
-                rowCount: 0,
-                valid: true,
-                errors: [],
-              });
-            }
+            if (f) handleFile(f);
           }}
         />
-      </label>
+      </div>
 
-      {/* Preview table placeholder */}
+      {/* Parse error */}
+      {parseError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          {parseError}
+        </div>
+      )}
+
+      {/* Preview table */}
       {preview && (
         <div className="rounded-xl border border-white/[0.06] overflow-hidden">
           <div className="flex items-center justify-between bg-white/[0.03] px-4 py-3">
             <span className="text-xs font-medium text-zinc-300">
-              File uploaded — 1,250 rows detected
+              {fileName} — {preview.rowCount.toLocaleString()} rows detected
             </span>
             {preview.valid ? (
               <span className="flex items-center gap-1 text-xs text-emerald-400">
@@ -259,7 +352,7 @@ function CSVPanel() {
               </span>
             ) : (
               <span className="flex items-center gap-1 text-xs text-red-400">
-                <AlertCircle className="h-3.5 w-3.5" /> Issues found
+                <AlertCircle className="h-3.5 w-3.5" /> {preview.errors.join(", ")}
               </span>
             )}
           </div>
@@ -267,27 +360,29 @@ function CSVPanel() {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-white/[0.06] text-zinc-500">
-                  <th className="pb-2 pr-4 font-medium">Date</th>
-                  <th className="pb-2 pr-4 font-medium">Open</th>
-                  <th className="pb-2 pr-4 font-medium">High</th>
-                  <th className="pb-2 pr-4 font-medium">Low</th>
-                  <th className="pb-2 pr-4 font-medium">Close</th>
-                  <th className="pb-2 pr-4 font-medium">Volume</th>
+                  {preview.columns.map((col) => (
+                    <th key={col} className="pb-2 pr-4 font-medium">{col}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <tr key={i} className="text-zinc-400">
-                    <td className="py-1.5 pr-4 font-mono text-zinc-300">
-                      2024-01-0{i}
+                {preview.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={preview.columns.length} className="py-8 text-center text-zinc-600">
+                      No data rows found
                     </td>
-                    <td className="py-1.5 pr-4">{120 + i * 2}.00</td>
-                    <td className="py-1.5 pr-4">{125 + i * 2}.00</td>
-                    <td className="py-1.5 pr-4">{118 + i * 2}.00</td>
-                    <td className="py-1.5 pr-4 text-white">{122 + i * 2}.00</td>
-                    <td className="py-1.5 pr-4">{(5 - i * 0.5).toFixed(1)}M</td>
                   </tr>
-                ))}
+                ) : (
+                  preview.rows.map((row, i) => (
+                    <tr key={i} className="text-zinc-400">
+                      {preview.columns.map((col) => (
+                        <td key={col} className="py-1.5 pr-4 font-mono">
+                          {String(row[col] ?? "")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
