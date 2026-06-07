@@ -243,9 +243,9 @@ def run_backtest(input: BacktestInput) -> BacktestOutput:
         else:
             raise ValueError("ohlcv_data must have a datetime column or DatetimeIndex")
 
-    # Normalize timezone (yfinance returns tz-aware timestamps)
+    # Normalize timezone (yfinance returns tz-aware timestamps for US stocks)
     if hasattr(df.index, "tz") and df.index.tz is not None:
-        df.index = df.index.tz_convert(None)
+        df.index = df.index.tz_convert("UTC").tz_localize(None)
 
     # Slice to date range if specified
     if input.start_date:
