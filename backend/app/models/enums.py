@@ -1,6 +1,13 @@
 import enum
 
 
+def enum_value(obj) -> str:
+    """Get the string value from an enum or string. Safe for any case."""
+    if isinstance(obj, enum.Enum):
+        return obj.value
+    return str(obj)
+
+
 class Plan(str, enum.Enum):
     free = "free"
     pro = "pro"

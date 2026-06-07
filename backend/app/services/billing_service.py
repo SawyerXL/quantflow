@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.user import User
-from app.models.enums import Plan
+from app.models.enums import Plan, enum_value
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -147,7 +147,7 @@ async def get_subscription_status(user: User) -> dict:
         }
     """
     result = {
-        "plan": user.plan.value if user.plan else "free",
+        "plan": enum_value(user.plan) if user.plan else "free",
         "status": None,
         "current_period_end": None,
         "cancel_at_period_end": False,

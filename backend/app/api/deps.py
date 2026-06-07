@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import decode_token
+from app.models.enums import enum_value
 from app.models.user import User
 
 settings = get_settings()
@@ -72,7 +73,7 @@ async def check_rate_limit(
     if not settings.RATE_LIMIT_ENABLED:
         return
 
-    max_requests = settings.RATE_LIMIT_PRO_USER if current_user.plan.value != "free" else settings.RATE_LIMIT_FREE_USER
+    max_requests = settings.RATE_LIMIT_PRO_USER if enum_value(current_user.plan) != "free" else settings.RATE_LIMIT_FREE_USER
     if max_requests == 0:
         return  # Unlimited
 
@@ -140,7 +141,7 @@ def check_plan_limit(user: User, action: str) -> None:
     Actions: run_backtest, api_access, export_pdf, custom_strategy.
     Raises HTTPException 403 with an upgrade_url on limit exceeded.
     """
-    plan = user.plan.value if hasattr(user.plan, "value") else str(user.plan)
+    plan = enum_value(user.plan)
     limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
 
     if action == "run_backtest":

@@ -21,7 +21,7 @@ from app.core.database import get_db
 from app.core.response import success_response, error_http
 from app.models.user import User
 from app.models.backtest import BacktestResult
-from app.models.enums import BacktestStatus, DataSource
+from app.models.enums import BacktestStatus, DataSource, enum_value
 from app.schemas.backtest import BacktestResponse, BacktestListResponse
 from app.api.deps import get_current_user, check_rate_limit
 from app.services.backtest_engine import (
@@ -45,7 +45,7 @@ router = APIRouter()
 
 async def _check_daily_limit(user: User, db: AsyncSession) -> None:
     """Enforce daily backtest limit for free-tier users."""
-    if user.plan.value == "free":
+    if enum_value(user.plan) == "free":
         now = datetime.now(timezone.utc)
         # Reset count if the day has changed
         if user.backtest_count_reset_at is None or user.backtest_count_reset_at.date() < now.date():
@@ -154,7 +154,7 @@ async def create_backtest(
         user_id=current_user.id,
         name=name,
         ticker=ticker or (file.filename if file else "unknown"),
-        data_source=data_source.value,
+        data_source=enum_value(data_source),
         start_date=dateutil.parser.parse(str(s_date)).date(),
         end_date=dateutil.parser.parse(str(e_date)).date(),
         initial_capital=initial_capital,
@@ -219,7 +219,7 @@ async def create_backtest(
         data={
             "id": str(backtest.id),
             "name": backtest.name,
-            "status": backtest.status.value,
+            "status": enum_value(backtest.status),
         },
         status_code=201,
     )
