@@ -1,43 +1,32 @@
 # Web framework
-fastapi==0.110.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.9
+fastapi>=0.110.0,<1
+uvicorn[standard]>=0.27.0,<1
+python-multipart>=0.0.9,<1
 
 # Database
-sqlalchemy[asyncio]==2.0.28
-asyncpg==0.29.0
-alembic==1.13.0
-psycopg2-binary==2.9.9
-
-# Redis
-redis==5.0.3
-hiredis==2.3.2
+sqlalchemy[asyncio]>=2.0,<3
+asyncpg>=0.29.0,<1
+alembic>=1.13.0,<2
+psycopg2-binary>=2.9.9,<3
 
 # Auth
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-dotenv==1.0.1
+python-jose[cryptography]>=3.3.0,<4
+passlib[bcrypt]>=1.7.4,<2
 
-# Backtesting
-vectorbt==0.5.0
-pandas==2.2.0
-numpy==1.26.4
-yfinance==0.2.36
+# Backtesting (pure pandas/numpy — no vectorbt)
+pandas>=2.2.0,<3
+numpy>=1.26.0,<2
+yfinance>=0.2.36,<1
 
 # Payments
-stripe==8.3.0
+stripe>=8.3.0,<16
 
 # Validation
-pydantic==2.6.0
-pydantic-settings==2.1.0
+pydantic>=2.6.0,<3
+pydantic-settings>=2.1.0,<3
 
 # HTTP
-httpx==0.27.0
-aiohttp==3.9.3
+httpx>=0.27.0,<1
 
-# Background tasks
-celery==5.3.6
-flower==2.0.1
-
-# Utilities
-loguru==0.7.2
+# Email
+resend>=1.0.0,<2
