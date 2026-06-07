@@ -16,8 +16,8 @@ function resolveApiUrl(): string {
   if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
     return "/api/v1";
   }
-  // Cloudflare Pages or other — assume /api/v1 proxies exist or use env var
-  return "/api/v1";
+  // Cloudflare Pages or other static hosts — use absolute Render URL
+  return "https://quantflow-v3q5.onrender.com/api/v1";
 }
 export const API_URL = resolveApiUrl();
 
