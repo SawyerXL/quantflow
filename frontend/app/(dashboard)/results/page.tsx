@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -480,7 +480,7 @@ function TradesTable({ trades }: { trades: TradeRecord[] }) {
 // Page
 // ============================================================================
 
-export default function ResultPage() {
+function ResultPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const chartRef = useRef<HTMLDivElement>(null);
@@ -855,5 +855,17 @@ function InfoItem({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] text-zinc-500">{label}</p>
       <p className="mt-0.5 text-sm font-medium text-zinc-200">{value}</p>
     </div>
+  );
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+      </div>
+    }>
+      <ResultPageInner />
+    </Suspense>
   );
 }
