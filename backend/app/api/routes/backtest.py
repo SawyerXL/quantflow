@@ -26,6 +26,7 @@ from app.schemas.backtest import BacktestResponse, BacktestListResponse
 from app.api.deps import get_current_user, check_rate_limit
 from app.services.backtest_engine import (
     BacktestInput,
+    run_backtest,
     run_backtest_async,
 )
 from app.services.data_service import (
