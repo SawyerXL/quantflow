@@ -100,6 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchUser();
+    // Auto-refresh plan status every 5 minutes
+    const interval = setInterval(fetchUser, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [fetchUser]);
 
   const login = useCallback(

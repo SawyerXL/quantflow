@@ -32,21 +32,54 @@ FRONTEND_URL = "http://localhost:3000"
 async def subscription(
     current_user: User = Depends(get_current_user),
 ):
-    """Return the current user's subscription status and plan info."""
+    """Return the current user's subscription status, synced from Stripe."""
+    import stripe as stripe_mod
+
+    # If user has a Stripe subscription, try to sync from Stripe
+    if current_user.stripe_subscription_id:
+        try:
+            sub = stripe_mod.Subscription.retrieve(
+                current_user.stripe_subscription_id,
+                expand=["latest_invoice"],
+            )
+            # Sync plan back to database
+            from app.services.billing_service import _price_id_to_plan
+            try:
+                price_id = sub["items"]["data"][0]["price"]["id"]
+                stripe_plan = _price_id_to_plan(price_id)
+                if stripe_plan != "free" and current_user.plan.value != stripe_plan:
+                    current_user.plan = __import__("app.models.enums", fromlist=["Plan"]).Plan(stripe_plan)
+                    await db.commit()
+            except Exception:
+                pass
+
+            plan = PLAN_META.get(current_user.plan.value if hasattr(current_user.plan, "value") else "free", PLAN_META["free"])
+            return success_response(data={
+                "plan": current_user.plan.value if hasattr(current_user.plan, "value") else "free",
+                "plan_name": plan["name"],
+                "status": sub.status,
+                "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
+                "cancel_at_period_end": sub.cancel_at_period_end,
+                "amount": sub["items"]["data"][0]["price"]["unit_amount"] if sub["items"]["data"] else None,
+                "interval": sub["items"]["data"][0]["price"]["recurring"]["interval"] if sub["items"]["data"] else None,
+                "limits": plan["limits"],
+                "prices": plan.get("prices"),
+            })
+        except Exception:
+            pass
+
+    # Fallback: use database state
     status = await get_subscription_status(current_user)
     plan = PLAN_META.get(status["plan"], PLAN_META["free"])
-
-    return success_response(
-        data={
-            "plan": status["plan"],
-            "plan_name": plan["name"],
-            "status": status["status"],
-            "current_period_end": status["current_period_end"],
-            "cancel_at_period_end": status["cancel_at_period_end"],
-            "limits": plan["limits"],
-            "prices": plan.get("prices"),
-        }
-    )
+    return success_response(data={
+        "plan": status["plan"],
+        "plan_name": plan["name"],
+        "status": status["status"],
+        "current_period_end": status["current_period_end"],
+        "cancel_at_period_end": status["cancel_at_period_end"],
+        "limits": plan["limits"],
+        "prices": plan.get("prices"),
+    })
 
 
 @router.post("/checkout")

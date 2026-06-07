@@ -252,8 +252,30 @@ async def reset_password(
 @router.get("/me")
 async def get_me(
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Return the currently authenticated user's profile."""
-    return success_response(
-        data=UserResponse.model_validate(current_user).model_dump(),
-    )
+    """Return the currently authenticated user's profile, with plan limits and subscription info."""
+    from app.services.billing_service import get_subscription_status
+
+    sub_info = {"status": None, "current_period_end": None, "cancel_at_period_end": False}
+    try:
+        sub_info = await get_subscription_status(current_user)
+    except Exception:
+        pass
+
+    plan_value = current_user.plan.value if hasattr(current_user.plan, "value") else str(current_user.plan)
+    limits = {"free": 5, "pro": -1, "quant": -1}
+    daily_limit = limits.get(plan_value, 5)
+
+    data = {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "plan": plan_value,
+        "plan_display_name": plan_value.capitalize(),
+        "backtest_count_today": current_user.backtest_count_today,
+        "backtest_limit_today": daily_limit,
+        "subscription": sub_info if sub_info["status"] else None,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+    }
+    return success_response(data=data)
