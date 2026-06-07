@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// On Vercel: use relative paths, proxied through vercel.json rewrites
+// On local dev: use absolute localhost URL
+const API_URL =
+  typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "/api/v1" // Vercel proxy rewrites /api/* → Render
+    : "http://localhost:8000/api/v1";
 
 // Render free tier spins down after 15 min of inactivity.
 // Cold start can take 30+ seconds — we retry up to 3 times with a long timeout.
