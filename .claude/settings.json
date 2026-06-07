@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(curl:*)",
+      "Bash(pip:*)",
+      "Bash(npm:*)",
+      "Bash(cd /root/quantflow:*)",
+      "Bash(find /root/quantflow:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*.csv)",
+      "Bash(rm -rf:*)",
+      "Bash(cp:*)",
+      "Bash(sed:*)",
+      "Bash(echo:*)",
+      "Bash(python3:*)",
+      "Bash(.venv/bin/pip:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(.venv/bin/alembic:*)",
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(DATABASE_URL:*)",
+      "Bash(PYTHONPATH:*)",
+      "Bash(sleep:*:*)",
+      "Bash(wait:*)",
+      "Bash(export:*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)"
+    ]
+  }
+}

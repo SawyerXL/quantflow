@@ -26,15 +26,13 @@ from app.schemas.backtest import BacktestResponse, BacktestListResponse
 from app.api.deps import get_current_user, check_rate_limit
 from app.services.backtest_engine import (
     BacktestInput,
-    BacktestOutput,
-    run_backtest,
     run_backtest_async,
-    generate_sample_data,
 )
 from app.services.data_service import (
     parse_csv_upload,
     validate_ohlcv,
     preprocess_data,
+    get_yahoo_data,
 )
 
 router = APIRouter()
@@ -181,7 +179,7 @@ async def create_backtest(
             try:
                 if ohlcv_data is None:
                     # Fetch from Yahoo or generate sample
-                    ohlcv_data = generate_sample_data(days=1000)
+                    ohlcv_data = await get_yahoo_data(ticker, str(s_date), str(e_date))
 
                 bt_input = BacktestInput(
                     ohlcv_data=ohlcv_data,
@@ -276,7 +274,7 @@ async def create_backtest_sync(
             raise error_http("validation.error", str(e), status_code=422)
         ticker_name = file.filename or "upload"
     else:
-        ohlcv_data = generate_sample_data(days=1000)
+        ohlcv_data = await get_yahoo_data(ticker, str(s_date), str(e_date))
         ticker_name = ticker
 
     name = name or f"{strategy_type.upper()} on {ticker_name}"
