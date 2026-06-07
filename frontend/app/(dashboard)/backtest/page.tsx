@@ -220,27 +220,54 @@ function CSVPanel() {
       const lines = text.trim().split("\n");
       if (lines.length < 2) throw new Error("CSV file has no data rows");
       const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-      const rows: string[][] = [];
-      for (let i = 1; i < Math.min(lines.length, 6); i++) {
-        rows.push(lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
-      }
       const closeIdx = headers.findIndex((h) => h.toLowerCase() === "close");
       const dateIdx = headers.findIndex((h) =>
         ["date", "datetime", "time", "timestamp"].includes(h.toLowerCase()),
       );
 
-      const valid = closeIdx >= 0;
       const errors: string[] = [];
-      if (!valid) errors.push("Missing 'close' price column");
-      if (dateIdx < 0) errors.push("Missing date column");
+      let negCount = 0;
+      let missingCount = 0;
+      let firstNegRow = 0;
+      let firstMissingRow = 0;
+
+      // Parse all rows for data validation
+      const allRows: Record<string, string>[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        const obj: Record<string, string> = {};
+        headers.forEach((h, j) => (obj[h] = cols[j] ?? ""));
+        allRows.push(obj);
+
+        if (closeIdx >= 0) {
+          const closeVal = cols[closeIdx];
+          if (closeVal === "" || closeVal === undefined || closeVal === "None" || closeVal === "NaN") {
+            if (missingCount === 0) firstMissingRow = i;
+            missingCount++;
+          } else {
+            const num = Number(closeVal);
+            if (!isNaN(num) && num <= 0) {
+              if (negCount === 0) firstNegRow = i;
+              negCount++;
+            }
+          }
+        }
+      }
+
+      // Build errors
+      if (closeIdx < 0) errors.push("Missing 'close' price column");
+      if (dateIdx < 0) errors.push("Missing date/time column");
+      if (negCount > 0) errors.push(`${negCount} negative/zero price(s) — first at row ${firstNegRow}`);
+      if (missingCount > 0) errors.push(`${missingCount} missing close value(s) — first at row ${firstMissingRow}`);
+
+      const valid = errors.length === 0;
+
+      // Preview first 5 rows
+      const previewRows = allRows.slice(0, 5);
 
       store.setCSVPreview({
         columns: headers,
-        rows: rows.map((r) => {
-          const obj: Record<string, string> = {};
-          headers.forEach((h, i) => (obj[h] = r[i] ?? ""));
-          return obj;
-        }),
+        rows: previewRows,
         rowCount: lines.length - 1,
         valid,
         errors,
