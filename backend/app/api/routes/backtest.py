@@ -122,7 +122,7 @@ async def create_backtest(
     if strategy_type not in ("ma_cross", "rsi", "bollinger", "macd"):
         raise error_http(
             "validation.error",
-            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross, rsi, bollinger",
+            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross, rsi, bollinger, macd",
             status_code=422,
         )
 
@@ -259,7 +259,7 @@ async def create_backtest_sync(
     if strategy_type not in ("ma_cross", "rsi", "bollinger", "macd"):
         raise error_http(
             "validation.error",
-            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross, rsi, bollinger",
+            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross, rsi, bollinger, macd",
             status_code=422,
         )
 
