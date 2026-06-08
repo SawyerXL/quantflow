@@ -632,6 +632,10 @@ def preprocess_data(
 
     df = df.copy()
 
+    # Normalize timezone (yfinance returns tz-aware timestamps for US stocks)
+    if hasattr(df.index, "tz") and df.index.tz is not None:
+        df.index = df.index.tz_convert("UTC").tz_localize(None)
+
     # Filter by date
     if start_date:
         start_ts = pd.Timestamp(start_date)
