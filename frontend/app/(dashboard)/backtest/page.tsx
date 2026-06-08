@@ -47,6 +47,11 @@ const STRATEGY_META: Record<
     desc: "Buy at lower band, sell at upper band. Volatility mean-reversion.",
     icon: BarChart3,
   },
+  macd: {
+    title: "MACD Signal",
+    desc: "Buy when MACD crosses above signal line. Classic momentum strategy.",
+    icon: Activity,
+  },
 };
 
 const PRESET_DATES = [

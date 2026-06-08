@@ -213,10 +213,40 @@ def _generate_bollinger_signals(
 
 
 # Strategy dispatch
+def _generate_macd_signals(
+    close: pd.Series, params: dict
+) -> tuple[pd.Series, pd.Series]:
+    """
+    MACD signal-line crossover strategy.
+
+    Logic: MACD crosses above signal line → entry.
+           MACD crosses below signal line → exit.
+
+    Returns (entries, exits) as boolean Series.
+    """
+    fast = int(params.get("fast_period", 12))
+    slow = int(params.get("slow_period", 26))
+    signal_period = int(params.get("signal_period", 9))
+
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+
+    entries = (macd_line > signal_line) & (macd_line.shift(1) <= signal_line.shift(1))
+    exits = (macd_line < signal_line) & (macd_line.shift(1) >= signal_line.shift(1))
+
+    entries.iloc[:slow + signal_period] = False
+    exits.iloc[:slow + signal_period] = False
+
+    return entries, exits
+
+
 STRATEGY_FUNCTIONS = {
     "ma_cross": _generate_ma_cross_signals,
     "rsi": _generate_rsi_signals,
     "bollinger": _generate_bollinger_signals,
+    "macd": _generate_macd_signals,
 }
 
 

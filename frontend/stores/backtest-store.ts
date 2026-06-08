@@ -8,7 +8,7 @@ import { persist } from "zustand/middleware";
 // ============================================================================
 
 export type DataSource = "csv" | "ticker";
-export type StrategyType = "ma_cross" | "rsi" | "bollinger";
+export type StrategyType = "ma_cross" | "rsi" | "bollinger" | "macd";
 export type Step = 1 | 2 | 3 | 4;
 
 export interface CSVPreview {

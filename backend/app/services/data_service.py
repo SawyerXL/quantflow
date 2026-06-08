@@ -371,15 +371,21 @@ async def get_yahoo_data(
         raise RuntimeError("yfinance package is not installed")
 
     try:
+        # Fetch 60 extra days for indicator warmup (e.g., SMA 50 needs 50 prior bars)
+        from datetime import timedelta
+        extended_start = (pd.Timestamp(start_date) - timedelta(days=90)).strftime("%Y-%m-%d")
+
         ticker_obj = yf.Ticker(ticker)
 
         # Run yfinance in a thread with timeout
         df = await asyncio.wait_for(
             asyncio.to_thread(
                 ticker_obj.history,
-                start=start_date,
+                start=extended_start,
                 end=end_date,
                 interval=interval,
+                auto_adjust=True,   # Use adjusted close prices
+                actions=False,      # Don't need dividend/split data
             ),
             timeout=API_TIMEOUT,
         )
