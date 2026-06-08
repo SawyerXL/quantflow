@@ -64,10 +64,10 @@ class BacktestInput:
             raise ValueError("initial_capital must be positive")
         if not (0 <= self.commission <= 0.05):
             raise ValueError("commission must be in [0, 0.05]")
-        if self.strategy_type not in ("ma_cross", "rsi", "bollinger"):
+        if self.strategy_type not in ("ma_cross", "rsi", "bollinger", "macd"):
             raise ValueError(
                 f"Unknown strategy_type: {self.strategy_type}. "
-                f"Supported: ma_cross, rsi, bollinger"
+                f"Supported: ma_cross, rsi, bollinger, macd"
             )
 
 
