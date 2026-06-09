@@ -284,9 +284,10 @@ async def handle_webhook(
     logger.info("Processing webhook %s: %s", event_id, event_type)
 
     try:
-        # Convert data object to dict for consistent access
-        data_obj = getattr(event, "data", None)
-        raw_data = data_obj.object if data_obj and hasattr(data_obj, "object") else data_obj.get("object") if isinstance(data_obj, dict) else {}
+        # Convert entire event to dict (Stripe SDK returns objects, not dicts)
+        import json
+        event_dict = json.loads(json.dumps(event, default=str))
+        raw_data = event_dict.get("data", {}).get("object", {})
 
         match event_type:
             case "checkout.session.completed":
