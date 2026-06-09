@@ -125,10 +125,13 @@ async def checkout(
             success_url=success_url,
             cancel_url=cancel_url,
         )
+        return success_response(data={"checkout_url": url})
     except RuntimeError as exc:
         raise error_http("external.api_error", str(exc), status_code=502)
-
-    return success_response(data={"checkout_url": url})
+    except Exception as exc:
+        import logging, traceback
+        logging.getLogger(__name__).error("Checkout failed: %s\n%s", exc, traceback.format_exc())
+        raise error_http("server.error", f"Checkout error: {exc}", status_code=500)
 
 
 @router.post("/portal")
