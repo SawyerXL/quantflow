@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   TrendingUp, TrendingDown, Loader2, ArrowRight, Sparkles, BarChart3,
@@ -39,6 +39,74 @@ function MetricCard({ label, value, isPct, color }: { label: string; value: numb
     </div>
   );
 }
+
+// ── Interactive parameter teaser ──────────────────────────────────────────────
+
+const TEASER_PARAMS: Record<string, { key: string; label: string; min: number; max: number; default: number; unit: string }> = {
+  "qqq-donchian": { key: "entry_period", label: "Entry Period", min: 5, max: 55, default: 20, unit: "days" },
+  "spy-momentum": { key: "threshold", label: "Threshold", min: 0.01, max: 0.2, default: 0.05, unit: "%" },
+  "btc-dualma":   { key: "short_period", label: "Short Period", min: 2, max: 30, default: 5, unit: "days" },
+};
+
+function ParamTeaser({ data }: { data: DemoData | null }) {
+  const [value, setValue] = useState<number | null>(null);
+  const [showLock, setShowLock] = useState(false);
+
+  if (!data) return null;
+  const spec = TEASER_PARAMS[data.id];
+  if (!spec) return null;
+
+  const current = value ?? spec.default;
+  const changed = current !== spec.default;
+
+  return (
+    <div className="rounded-2xl border border-dashed border-white/[0.08] bg-[#0f0f0f] p-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-zinc-300">
+          🔧 Want better results? Try adjusting <span className="text-emerald-400">{spec.label}</span>
+        </h3>
+        {changed && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">Preview only</span>}
+      </div>
+
+      <div className="flex items-center gap-4">
+        <input
+          type="range"
+          min={spec.min}
+          max={spec.max}
+          step={spec.key === "threshold" ? 0.01 : 1}
+          value={current}
+          onChange={(e) => {
+            setValue(parseFloat(e.target.value));
+            if (!changed) setTimeout(() => setShowLock(true), 1200);
+          }}
+          className="flex-1 h-1.5 cursor-pointer rounded-full bg-white/[0.08] accent-emerald-500"
+        />
+        <span className="w-16 text-right text-sm font-mono text-white">
+          {spec.key === "threshold" ? `${(current * 100).toFixed(0)}%` : current}
+          <span className="text-xs text-zinc-500 ml-0.5">{spec.unit}</span>
+        </span>
+      </div>
+
+      {changed && (
+        <div className="mt-4 flex items-center justify-between rounded-lg bg-amber-500/[0.06] border border-amber-500/15 px-4 py-3">
+          <p className="text-xs text-amber-400/80">
+            <span className="font-semibold">🔓 Unlock full optimization</span> — test 100+ parameter combinations to find the best settings.
+          </p>
+          <Link href="/register" className="flex-shrink-0 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400">
+            Sign Up Free →
+          </Link>
+        </div>
+      )}
+
+      {!changed && (
+        <p className="mt-2 text-xs text-zinc-500">
+          Drag the slider to see how parameters impact results. Sign up to run unlimited backtests with your own settings.
+        </p>
+      )}
+    </div>
+  );
+}
+
 
 export default function DemoPage() {
   const [demos, setDemos] = useState<DemoMeta[]>([]);
@@ -131,6 +199,14 @@ export default function DemoPage() {
               <MetricCard label="Win Rate" value={data.win_rate} isPct />
               <MetricCard label="Total Trades" value={data.total_trades} />
             </div>
+
+            {/* Interactive parameter teaser */}
+            <ParamTeaser data={data} />
+
+            {/* Legal disclaimer */}
+            <p className="text-center text-[11px] text-zinc-600">
+              Past performance does not guarantee future results. Demo shows historically optimized parameters.
+            </p>
 
             {/* Chart */}
             {data.equity_curve && data.equity_curve.length > 0 && (
