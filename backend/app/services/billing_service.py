@@ -118,8 +118,10 @@ async def create_checkout_session(
     # Ensure customer exists
     customer_id = await _ensure_customer(user, db)
 
-    # If price_id looks like a placeholder (not a real Stripe price_xxx), auto-create it
-    if not price_id.startswith("price_"):
+    # If price_id looks like a placeholder (not a real Stripe price_XXXXXXXX), auto-create it
+    # Real Stripe IDs: price_1AbCdEfGhIjKlMnOp (starts with price_ then at least 14 chars including numbers)
+    is_real_price = price_id.startswith("price_") and len(price_id) > 20 and any(c.isdigit() for c in price_id[6:])
+    if not is_real_price:
         price_id = await _get_or_create_test_price(price_id)
 
     try:
