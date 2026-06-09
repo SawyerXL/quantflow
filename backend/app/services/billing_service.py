@@ -54,8 +54,13 @@ PLAN_META = {
     },
 }
 
-# Test mode price cache — auto-created on first use
+# Test mode price cache — try to load on module import (best-effort)
 _test_price_cache: dict[str, str] = {}
+
+# Pre-populate on import if Stripe key is available
+_STRIPE_READY = bool(settings.STRIPE_SECRET_KEY)
+if _STRIPE_READY:
+    _test_price_cache = {}  # Will be populated on first request
 
 
 async def _get_or_create_test_price(price_slug: str) -> str:
@@ -133,24 +138,33 @@ async def create_checkout_session(
     # Ensure customer exists
     customer_id = await _ensure_customer(user, db)
 
-    # If price_id looks like a placeholder (not a real Stripe price_XXXXXXXX), auto-create it
-    # Real Stripe IDs: price_1AbCdEfGhIjKlMnOp (starts with price_ then at least 14 chars including numbers)
+    # If price_id looks like a placeholder, use inline price_data (fast, no Stripe Product.create)
     is_real_price = price_id.startswith("price_") and len(price_id) > 20 and any(c.isdigit() for c in price_id[6:])
-    if not is_real_price:
-        price_id = await _get_or_create_test_price(price_id)
 
     try:
-        session = stripe.checkout.Session.create(
-            customer=customer_id,
-            mode="subscription" if price_id.startswith("price_") else "payment",
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata={"user_id": str(user.id)},
-            allow_promotion_codes=True,
-            billing_address_collection="auto",
-        )
-        logger.info("Checkout session %s created for user %s", session.id, user.id)
+        if not is_real_price:
+            amount_map = {"price_pro_monthly": 1900, "price_pro_yearly": 15900, "price_quant_monthly": 4900, "price_quant_yearly": 39900}
+            amount = amount_map.get(price_id, 1900)
+            session = stripe.checkout.Session.create(
+                customer=customer_id,
+                mode="payment",
+                line_items=[{"price_data": {"currency": "usd", "product_data": {"name": price_id.replace("price_", "").replace("_", " ").title()}, "unit_amount": amount}, "quantity": 1}],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={"user_id": str(user.id)},
+            )
+        else:
+            session = stripe.checkout.Session.create(
+                customer=customer_id,
+                mode="subscription",
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={"user_id": str(user.id)},
+                allow_promotion_codes=True,
+                billing_address_collection="auto",
+            )
+        logger.info("Checkout session %s for user %s", session.id, user.id)
         return session.url or ""
     except Exception as exc:
         logger.exception("Stripe checkout error for user %s: %s", user.id, exc)
