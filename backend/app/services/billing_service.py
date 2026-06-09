@@ -399,7 +399,11 @@ async def _handle_checkout_completed(
     # Determine plan from the line item price
     try:
         sub = stripe.Subscription.retrieve(subscription_id)
-        price_id = sub["items"]["data"][0]["price"]["id"]
+        # Stripe SDK v15+ uses attribute access, v5- uses dict access — handle both
+        try:
+            price_id = sub["items"]["data"][0]["price"]["id"]
+        except (KeyError, TypeError, AttributeError):
+            price_id = sub.items.data[0].price.id
         plan = _price_id_to_plan(price_id)
     except Exception:
         plan = "pro"  # Default fallback
@@ -431,7 +435,10 @@ async def _handle_subscription_updated(
     status = subscription.get("status", "")
     if status in ("active", "trialing"):
         try:
-            price_id = subscription["items"]["data"][0]["price"]["id"]
+            try:
+                price_id = subscription["items"]["data"][0]["price"]["id"]
+            except (KeyError, TypeError, AttributeError):
+                price_id = subscription.items.data[0].price.id
             plan = _price_id_to_plan(price_id)
             user.plan = Plan(plan)
         except Exception:
