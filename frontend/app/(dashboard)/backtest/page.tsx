@@ -28,30 +28,19 @@ import { AuthModal } from "@/components/ui/auth-modal";
 // Helpers
 // ============================================================================
 
-const STRATEGY_META: Record<
-  StrategyType,
-  { title: string; desc: string; icon: typeof TrendingUp }
-> = {
-  ma_cross: {
-    title: "MA Crossover",
-    desc: "Buy when fast MA crosses above slow MA. Classic trend-following.",
-    icon: TrendingUp,
-  },
-  rsi: {
-    title: "RSI Strategy",
-    desc: "Buy oversold, sell overbought. Mean-reversion for range markets.",
-    icon: Activity,
-  },
-  bollinger: {
-    title: "Bollinger Bands",
-    desc: "Buy at lower band, sell at upper band. Volatility mean-reversion.",
-    icon: BarChart3,
-  },
-  macd: {
-    title: "MACD Signal",
-    desc: "Buy when MACD crosses above signal line. Classic momentum strategy.",
-    icon: Activity,
-  },
+const STRATEGY_META: Record<string, { title: string; desc: string; icon: typeof TrendingUp; category?: string }> = {
+  ma_cross:      { title: "MA Crossover", desc: "Buy when fast MA crosses above slow MA", icon: TrendingUp, category: "Trend" },
+  dual_ma:       { title: "Triple MA", desc: "Short>Mid>Long MA alignment triggers buy", icon: TrendingUp, category: "Trend" },
+  donchian:      { title: "Donchian (Turtle)", desc: "Breakout of N-day high, exit on M-day low", icon: TrendingUp, category: "Trend" },
+  rsi:           { title: "RSI", desc: "Buy oversold, sell overbought", icon: Activity, category: "Oscillator" },
+  kdj:           { title: "KDJ Stochastic", desc: "Golden cross in oversold zone", icon: Activity, category: "Oscillator" },
+  cci:           { title: "CCI", desc: "Commodity Channel Index mean reversion", icon: Activity, category: "Oscillator" },
+  bollinger:     { title: "Bollinger Bands", desc: "Buy lower band, sell upper band", icon: BarChart3, category: "Volatility" },
+  atr_breakout:  { title: "ATR Breakout", desc: "Breakout above N×ATR channel", icon: BarChart3, category: "Volatility" },
+  macd:          { title: "MACD", desc: "Buy when MACD crosses above signal line", icon: Activity, category: "Momentum" },
+  momentum:      { title: "Momentum", desc: "Buy strong momentum, exit on reversal", icon: TrendingUp, category: "Momentum" },
+  mean_reversion:{ title: "Mean Reversion", desc: "Buy when price deviates N std below mean", icon: Activity, category: "Mean Reversion" },
+  volume_breakout:{ title: "Volume Breakout", desc: "Volume spike + rising price", icon: BarChart3, category: "Volume" },
 };
 
 const PRESET_DATES = [
@@ -434,55 +423,49 @@ function StrategySelectStep() {
   const store = useBacktestStore();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <p className="text-sm text-zinc-400">Choose a trading strategy to backtest.</p>
-      {(Object.keys(STRATEGY_META) as StrategyType[]).map((key) => {
-        const meta = STRATEGY_META[key];
-        const isSelected = store.strategyType === key;
-        return (
-          <button
-            key={key}
-            onClick={() => store.setStrategyType(key)}
-            className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition-all ${
-              isSelected
-                ? "border-emerald-500/50 bg-emerald-500/[0.06] ring-1 ring-emerald-500/30"
-                : "border-white/[0.06] bg-[#0f0f0f] hover:border-white/[0.12]"
-            }`}
-          >
-            <div
-              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                isSelected
-                  ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-white/[0.04] text-zinc-500"
-              }`}
-            >
-              <meta.icon className="h-5 w-5" />
+      {/* Group strategies by category */}
+      {(() => {
+        const cats: Record<string, string[]> = {};
+        Object.entries(STRATEGY_META).forEach(([key, meta]) => {
+          const c = meta.category || "Other";
+          if (!cats[c]) cats[c] = [];
+          cats[c].push(key);
+        });
+        return Object.entries(cats).map(([cat, keys]) => (
+          <div key={cat}>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">{cat}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {keys.map((key) => {
+                const meta = STRATEGY_META[key];
+                if (!meta) return null;
+                const isSelected = store.strategyType === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => store.setStrategyType(key)}
+                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                      isSelected ? "border-emerald-500/50 bg-emerald-500/[0.06] ring-1 ring-emerald-500/30" : "border-white/[0.06] bg-[#0f0f0f] hover:border-white/[0.12]"
+                    }`}
+                  >
+                    <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${isSelected ? "bg-emerald-500/20 text-emerald-400" : "bg-white/[0.04] text-zinc-500"}`}>
+                      <meta.icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-white truncate">{meta.title}</span>
+                        {isSelected && <span className="rounded-full bg-emerald-500/20 px-1 py-0.5 text-[9px] font-bold text-emerald-400">✓</span>}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-zinc-500 leading-tight">{meta.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-white">
-                  {meta.title}
-                </span>
-                {isSelected && (
-                  <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                    Selected
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-zinc-500">{meta.desc}</p>
-            </div>
-            <div
-              className={`mt-2 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${
-                isSelected
-                  ? "border-emerald-500 bg-emerald-500"
-                  : "border-white/[0.15]"
-              }`}
-            >
-              {isSelected && <Check className="h-3 w-3 text-black" />}
-            </div>
-          </button>
-        );
-      })}
+          </div>
+        ));
+      })()}
     </div>
   );
 }

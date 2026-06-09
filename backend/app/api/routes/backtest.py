@@ -119,10 +119,10 @@ async def create_backtest(
             status_code=422,
         )
 
-    if strategy_type not in ("ma_cross", "rsi", "bollinger", "macd"):
+    if strategy_type not in ("ma_cross","rsi","bollinger","macd","dual_ma","kdj","atr_breakout","cci","donchian","momentum","mean_reversion","volume_breakout"):
         raise error_http(
             "validation.error",
-            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross, rsi, bollinger, macd",
+            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross,rsi,bollinger,macd,dual_ma,kdj,atr_breakout,cci,donchian,momentum,mean_reversion,volume_breakout",
             status_code=422,
         )
 
@@ -256,10 +256,10 @@ async def create_backtest_sync(
     except json.JSONDecodeError:
         raise error_http("validation.error", "strategy_params must be valid JSON", status_code=422)
 
-    if strategy_type not in ("ma_cross", "rsi", "bollinger", "macd"):
+    if strategy_type not in ("ma_cross","rsi","bollinger","macd","dual_ma","kdj","atr_breakout","cci","donchian","momentum","mean_reversion","volume_breakout"):
         raise error_http(
             "validation.error",
-            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross, rsi, bollinger, macd",
+            f"Unknown strategy_type '{strategy_type}'. Supported: ma_cross,rsi,bollinger,macd,dual_ma,kdj,atr_breakout,cci,donchian,momentum,mean_reversion,volume_breakout",
             status_code=422,
         )
 

@@ -254,7 +254,7 @@ class TestErrorHandling:
         with pytest.raises(ValueError, match="Unknown strategy_type"):
             BacktestInput(
                 ohlcv_data=sample_data,
-                strategy_type="momentum",  # unsupported
+                strategy_type="foobar_xyz",  # truly unsupported
             )
 
     def test_negative_capital(self, sample_data):

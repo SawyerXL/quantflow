@@ -181,3 +181,17 @@ async def search(
     """
     results = await search_symbols(q)
     return success_response(data={"results": results})
+
+
+@router.get("/strategies")
+async def get_strategies(
+    _current_user: User = Depends(get_current_user),
+):
+    """Return all available strategy configs with parameter specs."""
+    from app.services.strategy_config import STRATEGY_CONFIGS, CATEGORIES
+    return success_response(data={
+        "strategies": [
+            {"id": sid, **cfg} for sid, cfg in STRATEGY_CONFIGS.items()
+        ],
+        "categories": CATEGORIES,
+    })

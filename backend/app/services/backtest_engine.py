@@ -64,10 +64,10 @@ class BacktestInput:
             raise ValueError("initial_capital must be positive")
         if not (0 <= self.commission <= 0.05):
             raise ValueError("commission must be in [0, 0.05]")
-        if self.strategy_type not in ("ma_cross", "rsi", "bollinger", "macd"):
+        if self.strategy_type not in ALL_STRATEGIES:
             raise ValueError(
                 f"Unknown strategy_type: {self.strategy_type}. "
-                f"Supported: ma_cross, rsi, bollinger, macd"
+                f"Supported: {', '.join(ALL_STRATEGIES)}"
             )
 
 
@@ -242,11 +242,201 @@ def _generate_macd_signals(
     return entries, exits
 
 
+# ── Strategy 5: Dual Moving Average (triple-MA confirmation) ────────────────
+
+def _generate_dual_ma_signals(close: pd.Series, params: dict) -> tuple[pd.Series, pd.Series]:
+    """Triple-MA alignment: short > mid > long → entry. short < mid → exit."""
+    short = int(params.get("short_period", 5))
+    mid = int(params.get("mid_period", 20))
+    long = int(params.get("long_period", 60))
+    if not (short < mid < long):
+        raise ValueError(f"short({short}) < mid({mid}) < long({long}) required")
+    ma_s = close.rolling(short).mean()
+    ma_m = close.rolling(mid).mean()
+    ma_l = close.rolling(long).mean()
+    bullish = (ma_s > ma_m) & (ma_m > ma_l)
+    entries = bullish & ~bullish.shift(1).fillna(False)
+    exits = (ma_s < ma_m) & (ma_s.shift(1) >= ma_m.shift(1))
+    entries.iloc[:long] = False; exits.iloc[:long] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 6: KDJ Stochastic ──────────────────────────────────────────────
+
+def _generate_kdj_signals(close: pd.Series, params: dict, high=None, low=None) -> tuple[pd.Series, pd.Series]:
+    """KDJ golden cross in oversold zone → entry. Dead cross in overbought → exit."""
+    n = int(params.get("kdj_period", 9))
+    oversold = float(params.get("oversold", 20))
+    overbought = float(params.get("overbought", 80))
+    h = high if high is not None else close
+    l = low if low is not None else close
+    low_n = l.rolling(n).min()
+    high_n = h.rolling(n).max()
+    rsv = (close - low_n) / (high_n - low_n + 1e-10) * 100
+    k = rsv.ewm(com=2, adjust=False).mean()
+    d = k.ewm(com=2, adjust=False).mean()
+    entries = (k > d) & (k.shift(1) <= d.shift(1)) & (d < oversold + 20)
+    exits = (k < d) & (k.shift(1) >= d.shift(1)) & (d > overbought - 20)
+    entries.iloc[:n+3] = False; exits.iloc[:n+3] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 7: ATR Breakout ────────────────────────────────────────────────
+
+def _generate_atr_breakout_signals(close: pd.Series, params: dict, high=None, low=None) -> tuple[pd.Series, pd.Series]:
+    """Breakout above N×ATR channel → entry. Drop below midline → exit."""
+    atr_p = int(params.get("atr_period", 14))
+    mult = float(params.get("multiplier", 2.0))
+    h = high if high is not None else close
+    l = low if low is not None else close
+    tr = pd.concat([h - l, (h - close.shift()).abs(), (l - close.shift()).abs()], axis=1).max(axis=1)
+    atr = tr.rolling(atr_p).mean()
+    mid = close.rolling(atr_p).mean()
+    upper = mid + mult * atr
+    entries = (close > upper) & (close.shift(1) <= upper.shift(1))
+    exits = (close < mid) & (close.shift(1) >= mid.shift(1))
+    entries.iloc[:atr_p] = False; exits.iloc[:atr_p] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 8: CCI ─────────────────────────────────────────────────────────
+
+def _generate_cci_signals(close: pd.Series, params: dict, high=None, low=None) -> tuple[pd.Series, pd.Series]:
+    """CCI cross above oversold → entry. Cross below overbought → exit."""
+    period = int(params.get("cci_period", 20))
+    oversold = float(params.get("oversold", -100))
+    overbought = float(params.get("overbought", 100))
+    h = high if high is not None else close
+    l = low if low is not None else close
+    tp = (h + l + close) / 3
+    sma = tp.rolling(period).mean()
+    mad = tp.rolling(period).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True)
+    cci = (tp - sma) / (0.015 * mad + 1e-10)
+    entries = (cci > oversold) & (cci.shift(1) <= oversold)
+    exits = (cci < overbought) & (cci.shift(1) >= overbought)
+    entries.iloc[:period] = False; exits.iloc[:period] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 9: Donchian Channel (Turtle) ───────────────────────────────────
+
+def _generate_donchian_signals(close: pd.Series, params: dict, high=None, low=None) -> tuple[pd.Series, pd.Series]:
+    """Breakout of N-day high → entry. Drop below M-day low → exit."""
+    entry_p = int(params.get("entry_period", 20))
+    exit_p = int(params.get("exit_period", 10))
+    h = high if high is not None else close
+    l = low if low is not None else close
+    upper = h.rolling(entry_p).max().shift(1)
+    lower = l.rolling(exit_p).min().shift(1)
+    entries = close > upper
+    exits = close < lower
+    entries.iloc[:entry_p+1] = False; exits.iloc[:entry_p+1] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 10: Momentum ───────────────────────────────────────────────────
+
+def _generate_momentum_signals(close: pd.Series, params: dict) -> tuple[pd.Series, pd.Series]:
+    """Momentum > threshold → entry. Momentum < 0 → exit."""
+    lookback = int(params.get("lookback", 20))
+    threshold = float(params.get("threshold", 0.05))
+    mom = close.pct_change(lookback)
+    entries = (mom > threshold) & (mom.shift(1) <= threshold)
+    exits = (mom < 0) & (mom.shift(1) >= 0)
+    entries.iloc[:lookback+1] = False; exits.iloc[:lookback+1] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 11: Mean Reversion ─────────────────────────────────────────────
+
+def _generate_mean_reversion_signals(close: pd.Series, params: dict) -> tuple[pd.Series, pd.Series]:
+    """Price deviates N std below mean → entry. Reverts → exit."""
+    period = int(params.get("period", 20))
+    entry_std = float(params.get("entry_std", 2.0))
+    exit_std = float(params.get("exit_std", 0.5))
+    ma = close.rolling(period).mean()
+    std = close.rolling(period).std()
+    z = (close - ma) / (std + 1e-10)
+    entries = (z < -entry_std) & (z.shift(1) >= -entry_std)
+    exits = (z > -exit_std) & (z.shift(1) <= -exit_std)
+    entries.iloc[:period] = False; exits.iloc[:period] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Strategy 12: Volume Breakout ────────────────────────────────────────────
+
+def _generate_volume_breakout_signals(close: pd.Series, params: dict, volume=None) -> tuple[pd.Series, pd.Series]:
+    """Volume spike + rising price → entry. Price drops → exit."""
+    vol_p = int(params.get("vol_period", 20))
+    vol_m = float(params.get("vol_multiplier", 2.0))
+    price_p = int(params.get("price_period", 5))
+    vol = volume if volume is not None else pd.Series(0, index=close.index)
+    vol_avg = vol.rolling(vol_p).mean()
+    price_chg = close.pct_change(price_p)
+    vol_spike = vol > vol_avg * vol_m
+    entries = vol_spike & (price_chg > 0) & ~(vol_spike.shift(1).fillna(False) & (price_chg.shift(1).fillna(0) > 0))
+    exits = (price_chg < 0) & (price_chg.shift(1) >= 0)
+    entries.iloc[:max(vol_p, price_p)] = False; exits.iloc[:max(vol_p, price_p)] = False
+    return entries.fillna(False), exits.fillna(False)
+
+
+# ── Dispatch ────────────────────────────────────────────────────────────────
+
+ALL_STRATEGIES = [
+    "ma_cross", "rsi", "bollinger", "macd",
+    "dual_ma", "kdj", "atr_breakout", "cci",
+    "donchian", "momentum", "mean_reversion", "volume_breakout",
+]
+
+
+def generate_signals(df: pd.DataFrame, strategy_type: str, params: dict) -> tuple[pd.Series, pd.Series]:
+    """Unified signal generation with OHLV context when needed."""
+    close = df["close"]
+    high = df.get("high", close)
+    low = df.get("low", close)
+    volume = df.get("volume")
+
+    if strategy_type == "ma_cross":
+        return _generate_ma_cross_signals(close, params)
+    elif strategy_type == "rsi":
+        return _generate_rsi_signals(close, params)
+    elif strategy_type == "bollinger":
+        return _generate_bollinger_signals(close, params)
+    elif strategy_type == "macd":
+        return _generate_macd_signals(close, params)
+    elif strategy_type == "dual_ma":
+        return _generate_dual_ma_signals(close, params)
+    elif strategy_type == "kdj":
+        return _generate_kdj_signals(close, params, high, low)
+    elif strategy_type == "atr_breakout":
+        return _generate_atr_breakout_signals(close, params, high, low)
+    elif strategy_type == "cci":
+        return _generate_cci_signals(close, params, high, low)
+    elif strategy_type == "donchian":
+        return _generate_donchian_signals(close, params, high, low)
+    elif strategy_type == "momentum":
+        return _generate_momentum_signals(close, params)
+    elif strategy_type == "mean_reversion":
+        return _generate_mean_reversion_signals(close, params)
+    elif strategy_type == "volume_breakout":
+        return _generate_volume_breakout_signals(close, params, volume)
+    else:
+        raise ValueError(f"Unknown strategy_type: {strategy_type}. Supported: {', '.join(ALL_STRATEGIES)}")
+
+
 STRATEGY_FUNCTIONS = {
     "ma_cross": _generate_ma_cross_signals,
     "rsi": _generate_rsi_signals,
     "bollinger": _generate_bollinger_signals,
     "macd": _generate_macd_signals,
+    "dual_ma": _generate_dual_ma_signals,
+    "kdj": _generate_kdj_signals,
+    "atr_breakout": _generate_atr_breakout_signals,
+    "cci": _generate_cci_signals,
+    "donchian": _generate_donchian_signals,
+    "momentum": _generate_momentum_signals,
+    "mean_reversion": _generate_mean_reversion_signals,
+    "volume_breakout": _generate_volume_breakout_signals,
 }
 
 

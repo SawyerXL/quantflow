@@ -85,13 +85,19 @@ def filter_valid_combos(strategy_type: str, combos: list[dict]) -> list[dict]:
     """Remove logically impossible parameter combinations."""
     valid = []
     for params in combos:
+        skip = False
         if strategy_type in ("ma_cross", "ema_cross", "macd"):
             if params.get("fast_period", 0) >= params.get("slow_period", 999):
-                continue
-        elif strategy_type == "rsi":
+                skip = True
+        elif strategy_type == "dual_ma":
+            s = params.get("short_period", 0); m = params.get("mid_period", 100); l = params.get("long_period", 200)
+            if not (s < m < l):
+                skip = True
+        elif strategy_type in ("rsi", "kdj", "cci"):
             if params.get("oversold", 0) >= params.get("overbought", 100):
-                continue
-        valid.append(params)
+                skip = True
+        if not skip:
+            valid.append(params)
     return valid
 
 
