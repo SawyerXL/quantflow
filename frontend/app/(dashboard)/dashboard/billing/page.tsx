@@ -243,12 +243,12 @@ function BillingPageInner() {
           body: JSON.stringify({ plan: planId, billing_period: period }),
         },
       );
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data ?? json;
-        window.location.href = data.checkout_url;
+      const json = await res.json();
+      if (res.ok && (json.success || json.data)) {
+        window.location.href = (json.data ?? json).checkout_url;
       } else {
-        setToast({ message: "Failed to start checkout. Please try again.", type: "error" });
+        const msg = json?.error?.message || json?.detail?.message || "Failed to start checkout. Please try again.";
+        setToast({ message: typeof msg === "string" ? msg : "Failed", type: "error" });
       }
     } catch {
       setToast({ message: "Network error. Please check your connection.", type: "error" });
