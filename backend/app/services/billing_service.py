@@ -271,26 +271,32 @@ async def handle_webhook(
         logger.warning("Webhook payload parse error")
         return {"status": "error", "message": "Invalid payload"}
 
+    # Stripe SDK v15+ returns Event object with attribute access
+    event_id = getattr(event, "id", None) or event.get("id", "")
+    event_type = getattr(event, "type", None) or event.get("type", "")
+
     # Idempotency — skip already-processed events
-    event_id = event.get("id", "")
     if event_id in _PROCESSED_EVENTS:
         logger.debug("Skipping duplicate webhook event %s", event_id)
         return {"status": "ok", "message": "Already processed"}
     _PROCESSED_EVENTS.add(event_id)
 
-    event_type = event["type"]
     logger.info("Processing webhook %s: %s", event_id, event_type)
 
     try:
+        # Convert data object to dict for consistent access
+        data_obj = getattr(event, "data", None)
+        raw_data = data_obj.object if data_obj and hasattr(data_obj, "object") else data_obj.get("object") if isinstance(data_obj, dict) else {}
+
         match event_type:
             case "checkout.session.completed":
-                await _handle_checkout_completed(event["data"]["object"], db)
+                await _handle_checkout_completed(raw_data, db)
             case "customer.subscription.updated":
-                await _handle_subscription_updated(event["data"]["object"], db)
+                await _handle_subscription_updated(raw_data, db)
             case "customer.subscription.deleted":
-                await _handle_subscription_deleted(event["data"]["object"], db)
+                await _handle_subscription_deleted(raw_data, db)
             case "invoice.payment_failed":
-                await _handle_invoice_failed(event["data"]["object"], db)
+                await _handle_invoice_failed(raw_data, db)
             case _:
                 logger.debug("Unhandled webhook event type: %s", event_type)
     except Exception as exc:
