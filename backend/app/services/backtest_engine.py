@@ -370,7 +370,7 @@ def _generate_mean_reversion_signals(close: pd.Series, params: dict) -> tuple[pd
 def _generate_volume_breakout_signals(close: pd.Series, params: dict, volume=None) -> tuple[pd.Series, pd.Series]:
     """Volume spike + rising price → entry. Price drops → exit."""
     vol_p = int(params.get("vol_period", 20))
-    vol_m = float(params.get("vol_multiplier", 2.0))
+    vol_m = float(params.get("vol_multiplier", 1.2))
     price_p = int(params.get("price_period", 5))
     vol = volume if volume is not None else pd.Series(0, index=close.index)
     vol_avg = vol.rolling(vol_p).mean()

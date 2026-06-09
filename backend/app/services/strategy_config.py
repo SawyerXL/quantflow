@@ -112,7 +112,7 @@ STRATEGY_CONFIGS = {
         "description": "Buy on volume spike with rising price",
         "params": [
             {"key": "vol_period", "label": "Volume MA Period", "type": "int", "default": 20, "min": 10, "max": 50},
-            {"key": "vol_multiplier", "label": "Volume Multiplier", "type": "float", "default": 2.0, "min": 1.5, "max": 4.0, "step": 0.5},
+            {"key": "vol_multiplier", "label": "Volume Multiplier", "type": "float", "default": 1.2, "min": 1.0, "max": 4.0, "step": 0.2},
             {"key": "price_period", "label": "Price Chg Period", "type": "int", "default": 5, "min": 1, "max": 20},
         ],
     },

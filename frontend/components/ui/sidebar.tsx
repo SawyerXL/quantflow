@@ -21,7 +21,7 @@ function NavItems() {
     { href: "/backtest", label: "Backtest", icon: BarChart3 },
     { href: "/optimize", label: "Optimize", icon: Sparkles, badge: user?.plan === "free" ? "Pro" : null },
     { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-    { href: "/dashboard/settings", label: "Settings", icon: Settings },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
   return (
     <nav className="flex-1 space-y-1 px-3 py-4">

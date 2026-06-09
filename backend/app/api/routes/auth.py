@@ -139,6 +139,34 @@ async def refresh(
     )
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change password for the currently authenticated user."""
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise error_http("auth.invalid_credentials", "Current password is incorrect", status_code=401)
+
+    pwd = body.new_password
+    if len(pwd) < 8:
+        raise error_http("validation.error", "Password must be at least 8 characters", status_code=422)
+    if not any(c.isalpha() for c in pwd):
+        raise error_http("validation.error", "Password must contain at least one letter", status_code=422)
+    if not any(c.isdigit() for c in pwd):
+        raise error_http("validation.error", "Password must contain at least one digit", status_code=422)
+
+    current_user.hashed_password = hash_password(pwd)
+    await db.commit()
+    return success_response(data={"message": "Password changed successfully"})
+
+
 @router.post("/logout")
 async def logout(
     current_user: User = Depends(get_current_user),
