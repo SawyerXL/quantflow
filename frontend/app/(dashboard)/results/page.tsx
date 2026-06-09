@@ -612,13 +612,27 @@ function ResultPageInner() {
   }, [data]);
 
   // Share link
-  const handleShare = useCallback(() => {
-    const link = `${window.location.origin}/share/backtest/${searchParams.get("id") || "demo"}`;
-    setShareLink(link);
-    navigator.clipboard.writeText(link).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [searchParams.get("id") || "demo"]);
+  const handleShare = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    const btId = searchParams.get("id");
+    if (!btId || !token) return;
+
+    try {
+      const res = await fetch(`${API_URL}/backtest/${btId}/share`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      const d = json.data ?? json;
+      const link = d.share_url || `${window.location.origin}/s?slug=${d.slug}`;
+      setShareLink(link);
+      navigator.clipboard.writeText(link).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setShareLink("Failed to create share link");
+    }
+  }, [searchParams.get("id")]);
 
   // Loading state
   if (loading) return <PageSkeleton />;

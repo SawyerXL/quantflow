@@ -14,7 +14,7 @@
       "Bash(head:*)",
       "Bash(tail:*)",
       "Bash(mkdir:*)",
-      "Bash(rm:*.csv)",
+      "Bash(rm:*)",
       "Bash(rm -rf:*)",
       "Bash(cp:*)",
       "Bash(sed:*)",

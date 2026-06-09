@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date, timezone
 
-from sqlalchemy import String, Float, Integer, DateTime, Date, ForeignKey, Text
+from sqlalchemy import String, Float, Integer, Boolean, DateTime, Date, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -61,6 +61,16 @@ class BacktestResult(Base):
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+    # Share link fields
+    share_slug: Mapped[str | None] = mapped_column(
+        String(12), unique=True, nullable=True, index=True
+    )
+    is_shared: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    share_created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    share_view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     owner: Mapped["User"] = relationship("User", back_populates="backtest_results")
     strategy: Mapped["Strategy | None"] = relationship(
