@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { API_URL } from "@/lib/api";
 
 // ============================================================================
 // Types
@@ -55,12 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL ||
-        (typeof window !== "undefined" && window.location.hostname === "localhost"
-          ? "http://localhost:8000/api/v1"
-          : "/api/v1");
-
       // Short timeout — don't block page load on cold Render startup
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -119,10 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Best-effort server-side logout (token blacklisting for future)
     if (token) {
       try {
-        const API_URL =
-          typeof window !== "undefined" && window.location.hostname === "localhost"
-            ? "http://localhost:8000/api/v1"
-            : "/api/v1";
         await fetch(`${API_URL}/auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
