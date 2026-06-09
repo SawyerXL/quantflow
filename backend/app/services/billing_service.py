@@ -327,6 +327,11 @@ async def create_customer(email: str, name: str) -> Optional[str]:
 
 async def _ensure_customer(user: User, db: AsyncSession) -> str:
     """Get or create a Stripe customer ID for the user."""
+    # If existing customer ID is a fake test fallback, clear it
+    if user.stripe_customer_id and user.stripe_customer_id.startswith("cus_test_"):
+        user.stripe_customer_id = None
+        await db.commit()
+
     if user.stripe_customer_id:
         return user.stripe_customer_id
 
@@ -338,15 +343,6 @@ async def _ensure_customer(user: User, db: AsyncSession) -> str:
             return customer_id
     except Exception as exc:
         logger.warning("Stripe customer creation failed: %s", exc)
-
-    # Fallback: use a mock customer ID for test mode
-    if not settings.STRIPE_SECRET_KEY or settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
-        import uuid
-        fallback_id = f"cus_test_{uuid.uuid4().hex[:12]}"
-        user.stripe_customer_id = fallback_id
-        await db.commit()
-        logger.info("Using test-mode fallback customer: %s", fallback_id)
-        return fallback_id
 
     raise RuntimeError("Stripe is not configured. Set STRIPE_SECRET_KEY in environment variables.")
 
