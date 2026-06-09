@@ -10,15 +10,37 @@ import {
   CreditCard,
   LogOut,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/backtest", label: "Backtest", icon: BarChart3 },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
+function NavItems() {
+  const { user } = useAuth();
+  const items = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/backtest", label: "Backtest", icon: BarChart3 },
+    { href: "/optimize", label: "Optimize", icon: Sparkles, badge: user?.plan === "free" ? "Pro" : null },
+    { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  ];
+  return (
+    <nav className="flex-1 space-y-1 px-3 py-4">
+      {items.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 hover:bg-white/[0.06] hover:text-white transition-colors"
+        >
+          <item.icon className="h-4 w-4" />
+          {item.label}
+          {item.badge && (
+            <span className="ml-auto rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">{item.badge}</span>
+          )}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 export function Sidebar() {
   const { logout } = useAuth();
@@ -41,18 +63,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-400 hover:bg-white/[0.06] hover:text-white transition-colors"
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </Link>
-        ))}
-      </nav>
+      <NavItems />
 
       {/* Sign Out */}
       <div className="border-t border-white/[0.06] px-3 py-4">
