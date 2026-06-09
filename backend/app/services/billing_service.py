@@ -147,8 +147,8 @@ async def create_checkout_session(
             amount = amount_map.get(price_id, 1900)
             session = stripe.checkout.Session.create(
                 customer=customer_id,
-                mode="payment",
-                line_items=[{"price_data": {"currency": "usd", "product_data": {"name": price_id.replace("price_", "").replace("_", " ").title()}, "unit_amount": amount}, "quantity": 1}],
+                mode="subscription",
+                line_items=[{"price_data": {"currency": "usd", "product_data": {"name": price_id.replace("price_", "").replace("_", " ").title()}, "unit_amount": amount, "recurring": {"interval": "month" if "monthly" in price_id else "year"}}, "quantity": 1}],
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata={"user_id": str(user.id)},
