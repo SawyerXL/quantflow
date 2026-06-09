@@ -277,12 +277,17 @@ function Hero() {
                       <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
                     </svg>
                   </StartForFreeLink>
-                  <a
-                    href="#demo"
-                    className="inline-flex items-center justify-center rounded-xl border border-zinc-700 px-8 py-3.5 text-base font-medium text-zinc-300 transition-all hover:border-zinc-500 hover:text-white"
+                  <Link
+                    href="/demo"
+                    className="relative inline-flex items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-8 py-3.5 text-base font-medium text-emerald-400 transition-all hover:border-emerald-500/60 hover:bg-emerald-500/[0.12]"
                   >
-                    See Demo
-                  </a>
+                    <span className="absolute -top-2 -right-2 flex h-4 w-4">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-500" />
+                    </span>
+                    ▶ Try Live Demo
+                    <span className="ml-2 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px]">No signup</span>
+                  </Link>
                 </div>
               </AnimateItem>
 

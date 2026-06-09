@@ -14,7 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.models import User, Strategy, BacktestResult  # noqa: F401 — register models
-from app.api.routes import auth, backtest, data, billing, dashboard, share, optimization
+from app.api.routes import auth, backtest, data, billing, dashboard, share, optimization, demo
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -48,6 +48,10 @@ if settings.SENTRY_DSN:
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Pre-compute demos in background (non-blocking)
+    import asyncio as _asyncio
+    from app.services.demo_service import precompute_demos
+    _asyncio.create_task(precompute_demos())
     yield
     await engine.dispose()
 
@@ -140,6 +144,7 @@ app.include_router(dashboard.router, prefix=f"{settings.API_V1_PREFIX}/dashboard
 app.include_router(share.router, prefix=f"{settings.API_V1_PREFIX}/backtest", tags=["Share"])
 app.include_router(share.router, prefix=f"{settings.API_V1_PREFIX}/share", tags=["Share"])
 app.include_router(optimization.router, prefix=f"{settings.API_V1_PREFIX}/optimize", tags=["Optimize"])
+app.include_router(demo.router, prefix=f"{settings.API_V1_PREFIX}/demo", tags=["Demo"])
 
 
 @app.get("/health")
