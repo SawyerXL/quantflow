@@ -96,6 +96,21 @@ _PROCESSED_EVENTS: set[str] = set()
 
 
 # ============================================================================
+# Startup: pre-create test prices
+# ============================================================================
+
+def ensure_test_prices():
+    """Called on startup — pre-creates test mode products/prices so checkout doesn't fail."""
+    if not settings.STRIPE_SECRET_KEY or settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
+        for slug in ["price_pro_monthly", "price_pro_yearly", "price_quant_monthly", "price_quant_yearly"]:
+            try:
+                pid = _get_or_create_test_price(slug)
+                logger.info("Test price ready: %s → %s", slug, pid)
+            except Exception as exc:
+                logger.warning("Could not pre-create test price %s: %s", slug, exc)
+
+
+# ============================================================================
 # Checkout session
 # ============================================================================
 
@@ -137,9 +152,9 @@ async def create_checkout_session(
         )
         logger.info("Checkout session %s created for user %s", session.id, user.id)
         return session.url or ""
-    except stripe.StripeError as exc:
-        logger.error("Stripe checkout error for user %s: %s", user.id, exc)
-        raise RuntimeError(f"Failed to create checkout session: {exc}") from exc
+    except Exception as exc:
+        logger.exception("Stripe checkout error for user %s: %s", user.id, exc)
+        raise RuntimeError(f"Stripe error: {exc}") from exc
 
 
 # ============================================================================
