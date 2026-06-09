@@ -268,6 +268,8 @@ def _generate_kdj_signals(close: pd.Series, params: dict, high=None, low=None) -
     n = int(params.get("kdj_period", 9))
     oversold = float(params.get("oversold", 20))
     overbought = float(params.get("overbought", 80))
+    if oversold >= overbought:
+        raise ValueError(f"oversold ({oversold}) must be less than overbought ({overbought})")
     h = high if high is not None else close
     l = low if low is not None else close
     low_n = l.rolling(n).min()
