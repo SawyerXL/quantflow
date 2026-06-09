@@ -48,12 +48,10 @@ if settings.SENTRY_DSN:
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # Pre-compute demos and create test prices in background (non-blocking)
+    # Pre-compute demos in background (non-blocking)
     import asyncio as _asyncio
     from app.services.demo_service import precompute_demos
-    from app.services.billing_service import ensure_test_prices as _billing_setup
     _asyncio.create_task(precompute_demos())
-    _asyncio.get_event_loop().run_in_executor(None, _billing_setup)
     yield
     await engine.dispose()
 
