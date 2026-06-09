@@ -54,6 +54,43 @@ PLAN_META = {
     },
 }
 
+# Test mode price cache — auto-created on first use
+_test_price_cache: dict[str, str] = {}
+
+
+async def _get_or_create_test_price(price_slug: str) -> str:
+    """Auto-create a Stripe test-mode price if no real price ID is configured."""
+    if price_slug in _test_price_cache:
+        return _test_price_cache[price_slug]
+
+    # Map slugs to amounts
+    amount_map = {
+        "price_pro_monthly": 1900,
+        "price_pro_yearly": 15900,
+        "price_quant_monthly": 4900,
+        "price_quant_yearly": 39900,
+    }
+    amount = amount_map.get(price_slug, 1900)  # Default $19
+    product_name = price_slug.replace("price_", "").replace("_", " ").title()
+
+    # Create product if not exists
+    products = stripe.Product.list(limit=100)
+    product = next((p for p in products.data if p.name == product_name), None)
+    if not product:
+        product = stripe.Product.create(name=product_name, description=f"QuantFlow {product_name} (test mode)")
+
+    interval = "month" if "monthly" in price_slug else "year"
+    price = stripe.Price.create(
+        product=product.id,
+        unit_amount=amount,
+        currency="usd",
+        recurring={"interval": interval},
+    )
+    _test_price_cache[price_slug] = price.id
+    logger.info("Auto-created test price: %s → %s ($%.2f)", price_slug, price.id, amount / 100)
+    return price.id
+
+
 # Webhook event idempotency — track processed event IDs (TTL 24h in Redis in prod)
 _PROCESSED_EVENTS: set[str] = set()
 
@@ -81,10 +118,14 @@ async def create_checkout_session(
     # Ensure customer exists
     customer_id = await _ensure_customer(user, db)
 
+    # If price_id looks like a placeholder (not a real Stripe price_xxx), auto-create it
+    if not price_id.startswith("price_"):
+        price_id = await _get_or_create_test_price(price_id)
+
     try:
         session = stripe.checkout.Session.create(
             customer=customer_id,
-            mode="subscription",
+            mode="subscription" if price_id.startswith("price_") else "payment",
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=success_url,
             cancel_url=cancel_url,
@@ -237,12 +278,14 @@ async def handle_webhook(
 
 async def create_customer(email: str, name: str) -> Optional[str]:
     """Create a Stripe customer. Returns the customer ID."""
+    if not settings.STRIPE_SECRET_KEY:
+        return None
     try:
         customer = stripe.Customer.create(email=email, name=name)
         logger.info("Stripe customer created: %s", customer.id)
         return customer.id
-    except stripe.StripeError as exc:
-        logger.error("Failed to create Stripe customer for %s: %s", email, exc)
+    except Exception as exc:
+        logger.warning("Stripe customer creation failed for %s: %s", email, exc)
         return None
 
 
@@ -256,13 +299,25 @@ async def _ensure_customer(user: User, db: AsyncSession) -> str:
     if user.stripe_customer_id:
         return user.stripe_customer_id
 
-    customer_id = await create_customer(user.email, user.full_name or "")
-    if customer_id:
-        user.stripe_customer_id = customer_id
+    try:
+        customer_id = await create_customer(user.email, user.full_name or "")
+        if customer_id:
+            user.stripe_customer_id = customer_id
+            await db.commit()
+            return customer_id
+    except Exception as exc:
+        logger.warning("Stripe customer creation failed: %s", exc)
+
+    # Fallback: use a mock customer ID for test mode
+    if not settings.STRIPE_SECRET_KEY or settings.STRIPE_SECRET_KEY.startswith("sk_test_"):
+        import uuid
+        fallback_id = f"cus_test_{uuid.uuid4().hex[:12]}"
+        user.stripe_customer_id = fallback_id
         await db.commit()
-    else:
-        raise RuntimeError("Failed to create Stripe customer")
-    return customer_id
+        logger.info("Using test-mode fallback customer: %s", fallback_id)
+        return fallback_id
+
+    raise RuntimeError("Stripe is not configured. Set STRIPE_SECRET_KEY in environment variables.")
 
 
 async def _get_user_by_customer_id(

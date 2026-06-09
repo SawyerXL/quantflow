@@ -25,7 +25,7 @@ from app.services.billing_service import (
 
 router = APIRouter()
 
-FRONTEND_URL = "http://localhost:3000"
+FRONTEND_URL = "https://quantflow.pages.dev"
 
 
 @router.get("/subscription")
