@@ -32,51 +32,43 @@ FRONTEND_URL = "https://quantflow.pages.dev"
 async def subscription(
     current_user: User = Depends(get_current_user),
 ):
-    """Return the current user's subscription status, synced from Stripe."""
+    """Return the current user's subscription status and plan info."""
+    # Read plan directly from database (webhook keeps it in sync)
     import stripe as stripe_mod
 
-    # If user has a Stripe subscription, try to sync from Stripe
+    plan_value = current_user.plan.value if hasattr(current_user.plan, "value") else str(current_user.plan)
+    plan = PLAN_META.get(plan_value, PLAN_META["free"])
+
+    sub_status = None
+    period_end = None
+    cancel_at_end = False
+    amount = None
+    interval = None
+
+    # Try to get live subscription details from Stripe (best-effort)
     if current_user.stripe_subscription_id:
         try:
-            sub = stripe_mod.Subscription.retrieve(
-                current_user.stripe_subscription_id,
-                expand=["latest_invoice"],
-            )
-            # Sync plan back to database
-            from app.services.billing_service import _price_id_to_plan
+            sub = stripe_mod.Subscription.retrieve(current_user.stripe_subscription_id)
+            sub_dict = sub.to_dict()
+            sub_status = sub_dict.get("status")
+            period_end = sub_dict.get("current_period_end")
+            cancel_at_end = sub_dict.get("cancel_at_period_end", False)
             try:
-                price_id = sub["items"]["data"][0]["price"]["id"]
-                stripe_plan = _price_id_to_plan(price_id)
-                if stripe_plan != "free" and current_user.plan.value != stripe_plan:
-                    current_user.plan = __import__("app.models.enums", fromlist=["Plan"]).Plan(stripe_plan)
-                    await db.commit()
-            except Exception:
+                amount = sub_dict["items"]["data"][0]["price"]["unit_amount"]
+                interval = sub_dict["items"]["data"][0]["price"]["recurring"]["interval"]
+            except (KeyError, IndexError):
                 pass
-
-            plan = PLAN_META.get(current_user.plan.value if hasattr(current_user.plan, "value") else "free", PLAN_META["free"])
-            return success_response(data={
-                "plan": current_user.plan.value if hasattr(current_user.plan, "value") else "free",
-                "plan_name": plan["name"],
-                "status": sub.status,
-                "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
-                "cancel_at_period_end": sub.cancel_at_period_end,
-                "amount": sub["items"]["data"][0]["price"]["unit_amount"] if sub["items"]["data"] else None,
-                "interval": sub["items"]["data"][0]["price"]["recurring"]["interval"] if sub["items"]["data"] else None,
-                "limits": plan["limits"],
-                "prices": plan.get("prices"),
-            })
         except Exception:
             pass
 
-    # Fallback: use database state
-    status = await get_subscription_status(current_user)
-    plan = PLAN_META.get(status["plan"], PLAN_META["free"])
     return success_response(data={
-        "plan": status["plan"],
+        "plan": plan_value,
         "plan_name": plan["name"],
-        "status": status["status"],
-        "current_period_end": status["current_period_end"],
-        "cancel_at_period_end": status["cancel_at_period_end"],
+        "status": sub_status,
+        "current_period_end": str(period_end) if period_end else None,
+        "cancel_at_period_end": cancel_at_end,
+        "amount": amount,
+        "interval": interval,
         "limits": plan["limits"],
         "prices": plan.get("prices"),
     })
