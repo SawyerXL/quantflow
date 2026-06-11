@@ -373,12 +373,16 @@ async def _get_user_by_subscription_id(
 
 
 def _price_id_to_plan(price_id: str) -> str:
-    """Map a Stripe Price ID to our plan name."""
+    """Map a Stripe Price ID to our plan name. Defaults to 'pro' for unrecognized IDs."""
     for plan, periods in PRICE_IDS.items():
         for price in periods.values():
             if price == price_id:
                 return plan
-    return "free"
+    if "monthly" in price_id.lower() or "_pro_" in price_id.lower():
+        return "pro"
+    if "quant" in price_id.lower() or "_quant_" in price_id.lower():
+        return "quant"
+    return "pro"  # Default for inline/unknown prices
 
 
 # ============================================================================
