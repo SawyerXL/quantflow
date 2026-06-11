@@ -271,9 +271,10 @@ async def handle_webhook(
         logger.warning("Webhook payload parse error")
         return {"status": "error", "message": "Invalid payload"}
 
-    # Stripe SDK v15+ returns Event object with attribute access
-    event_id = getattr(event, "id", None) or event.get("id", "")
-    event_type = getattr(event, "type", None) or event.get("type", "")
+    # Stripe SDK v15+ uses attribute access, not dict methods
+    # Convert to dict immediately via to_dict()
+    event_id = event.id
+    event_type = event.type
 
     # Idempotency — skip already-processed events
     if event_id in _PROCESSED_EVENTS:
@@ -284,16 +285,8 @@ async def handle_webhook(
     logger.info("Processing webhook %s: %s", event_id, event_type)
 
     try:
-        # Stripe SDK v15+ returns Event objects; convert to dict for safe access
-        # Try to_dict() first, fall back to plain object access
-        try:
-            raw_data = event.data.object
-            if hasattr(raw_data, "to_dict"):
-                raw_data = raw_data.to_dict()
-            elif not isinstance(raw_data, dict):
-                raw_data = dict(raw_data) if hasattr(raw_data, "__iter__") else {}
-        except Exception:
-            raw_data = {}
+        # Convert the inner data object to plain dict (Stripe objects have no .get())
+        raw_data = event.data.object.to_dict()
 
         match event_type:
             case "checkout.session.completed":
@@ -308,7 +301,6 @@ async def handle_webhook(
                 logger.debug("Unhandled webhook event type: %s", event_type)
     except Exception as exc:
         logger.exception("Error processing webhook %s: %s", event_id, exc)
-        # Remove from processed set so it can be retried
         _PROCESSED_EVENTS.discard(event_id)
         return {"status": "error", "message": str(exc)}
 
@@ -412,11 +404,8 @@ async def _handle_checkout_completed(
     # Determine plan from the line item price
     try:
         sub = stripe.Subscription.retrieve(subscription_id)
-        # Stripe SDK v15+ uses attribute access, v5- uses dict access — handle both
-        try:
-            price_id = sub["items"]["data"][0]["price"]["id"]
-        except (KeyError, TypeError, AttributeError):
-            price_id = sub.items.data[0].price.id
+        sub_dict = sub.to_dict()
+        price_id = sub_dict["items"]["data"][0]["price"]["id"]
         plan = _price_id_to_plan(price_id)
     except Exception:
         plan = "pro"  # Default fallback
