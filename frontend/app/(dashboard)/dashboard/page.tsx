@@ -13,6 +13,7 @@ import {
   Zap,
   Sparkles,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { API_URL } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
@@ -191,6 +192,16 @@ export default function DashboardPage() {
   const limit = user?.plan === "free" ? 5 : "∞";
   const used = data?.backtests_today ?? 0;
 
+  const deleteBacktest = async (id: string) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    await fetch(`${API_URL}/backtest/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    load(); // Refresh the list
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -240,31 +251,39 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-2">
             {stats.recent.map((r) => (
-              <Link
+              <div
                 key={r.id}
-                href={`/results?id=${r.id}`}
                 className="flex items-center justify-between rounded-xl border border-white/[0.04] bg-[#111] px-5 py-4 transition-all hover:border-white/[0.1] hover:bg-[#161616]"
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
+                <Link href={`/results?id=${r.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
                     <TrendingUp className="h-4 w-4 text-emerald-400" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{r.name}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{r.name}</p>
                     <p className="text-xs text-zinc-500">
                       {r.ticker} · Sharpe {r.sharpe_ratio?.toFixed(2) ?? "--"} · Win {r.win_rate != null ? `${(r.win_rate * 100).toFixed(0)}%` : "--"}
                     </p>
                   </div>
+                </Link>
+                <div className="flex items-center gap-4">
+                  <div className="text-right hidden sm:block">
+                    <p className={`text-sm font-semibold ${(r.total_return ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {r.total_return != null ? `${r.total_return >= 0 ? "+" : ""}${(r.total_return * 100).toFixed(1)}%` : "--"}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteBacktest(r.id); }}
+                    className="p-2 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="text-right">
-                  <p className={`text-sm font-semibold ${(r.total_return ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {r.total_return != null ? `${r.total_return >= 0 ? "+" : ""}${(r.total_return * 100).toFixed(1)}%` : "--"}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
-                  </p>
-                </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}
