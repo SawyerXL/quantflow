@@ -64,6 +64,43 @@ async def get_current_user_optional(
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 
+# 2026-09-02 新增: 未认证端点(login/register/forgot/reset)的进程内IP限流。
+# 原设计只有依赖get_current_user的check_rate_limit → 认证端点零限流(登录
+# 暴力破解/批量注册/重置邮件轰炸无门槛), 且Redis不可用时fail-open。
+# 进程内dict在单worker部署有效; Redis可用时仍建议升级共享存储。
+_AUTH_WINDOW_SECONDS = 300
+_AUTH_MAX_PER_WINDOW = 20
+_auth_hits: dict[str, list[float]] = {}
+
+
+def _prune(window_start: float) -> None:
+    for ip in list(_auth_hits.keys()):
+        _auth_hits[ip] = [t for t in _auth_hits[ip] if t >= window_start]
+        if not _auth_hits[ip]:
+            del _auth_hits[ip]
+
+
+async def check_auth_rate_limit(request: Request) -> None:
+    """未认证端点的按IP滑动窗口限流。超限抛429。"""
+    if not settings.RATE_LIMIT_ENABLED:
+        return
+    now = time.time()
+    window_start = now - _AUTH_WINDOW_SECONDS
+    ip = request.client.host if request.client else "unknown"
+    hits = _auth_hits.setdefault(ip, [])
+    _prune(window_start)
+    hits = _auth_hits.get(ip, [])
+    if len(hits) >= _AUTH_MAX_PER_WINDOW:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limit.exceeded",
+                "message": f"Too many attempts. Please try again in "
+                           f"{_AUTH_WINDOW_SECONDS // 60} minutes.",
+            },
+        )
+    hits.append(now)
+
 
 async def check_rate_limit(
     request: Request,

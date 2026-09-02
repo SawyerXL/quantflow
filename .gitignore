@@ -1,50 +1,6 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Next.js
-.next/
-out/
-
-# Build
-dist/
-build/
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.eggs/
-*.egg
-.venv/
-venv/
-env/
-
-# Environment
+passwd/
 .env
-.env.local
-.env.*.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-*.pid
-
-# Coverage
-coverage/
-.coverage
-htmlcov/
-
-# Logs
-*.log
+.env.*
+__pycache__/
+.venv/
+node_modules/

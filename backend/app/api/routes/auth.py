@@ -30,7 +30,7 @@ from app.schemas.user import (
     AccessTokenResponse,
     UserResponse,
 )
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, check_auth_rate_limit
 from app.services.billing_service import create_customer
 
 router = APIRouter()
@@ -40,9 +40,13 @@ router = APIRouter()
 async def register(
     body: UserRegister,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(check_auth_rate_limit),
 ):
     """Register a new account. Returns access and refresh tokens."""
-    existing = await db.execute(select(User).where(User.email == body.email))
+    # 2026-09-02 修复: 统一小写存储——旧版原样存大小写而forgot_password用
+    # lower()查询, 大小写混合邮箱会注册/重置两边对不上(可被用来干扰重置流程)
+    email = body.email.strip().lower()
+    existing = await db.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none():
         raise error_http(
             "resource.conflict",
@@ -51,7 +55,7 @@ async def register(
         )
 
     user = User(
-        email=body.email,
+        email=email,
         hashed_password=hash_password(body.password),
         full_name=body.full_name,
     )
@@ -85,9 +89,11 @@ async def register(
 async def login(
     body: UserLogin,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(check_auth_rate_limit),
 ):
     """Authenticate with email and password. Returns access and refresh tokens."""
-    result = await db.execute(select(User).where(User.email == body.email))
+    result = await db.execute(
+        select(User).where(User.email == body.email.strip().lower()))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -221,6 +227,7 @@ class ResetPasswordRequest(BaseModel):
 async def forgot_password(
     body: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(check_auth_rate_limit),
 ):
     """Request a password reset email. Always returns the same response
     regardless of whether the email exists (prevents enumeration)."""
@@ -249,6 +256,7 @@ async def forgot_password(
 async def reset_password(
     body: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
+    _: None = Depends(check_auth_rate_limit),
 ):
     """Complete password reset using the token from email."""
     # Validate password strength

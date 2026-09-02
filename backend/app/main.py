@@ -48,6 +48,24 @@ if settings.SENTRY_DSN:
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 2026-09-02 新增: 迁移链完整性检查——create_all只建新表, 不补已存在
+        # 表的缺列(migrations/0002的share_slug等)。生产库若由create_all创建
+        # 且从未跑过alembic, share路由会静默500。此处把缺口变成启动期可见
+        # 的明确错误, 而非运行期无头故障。
+        try:
+            from sqlalchemy import text
+            res = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='backtests' AND column_name='share_slug'"
+            ))
+            if res.first() is None:
+                logger.error(
+                    "DB schema incomplete: backtests.share_slug missing. "
+                    "Run: alembic stamp 20260606_0001 && alembic upgrade head "
+                    "(migrations/versions/) — 只ALTER不重建。"
+                )
+        except Exception:
+            pass  # DB未就绪时健康检查会暴露, 不阻断启动
     # Pre-compute demos in background (non-blocking)
     import asyncio as _asyncio
     from app.services.demo_service import precompute_demos
@@ -65,8 +83,8 @@ app = FastAPI(
     "and deploy algorithmic trading strategies.",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
     openapi_tags=[
         {"name": "Auth", "description": "Authentication — register, login, token refresh."},
         {"name": "Backtest", "description": "Run and manage backtests."},
@@ -104,13 +122,15 @@ class UnifiedErrorMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=exc.status_code, content=body)
         except Exception as exc:
             logger.exception("Unhandled exception on %s %s", request.method, request.url)
+            # 2026-09-02 安全修复: 不把异常类型/消息回传客户端(SQLAlchemy/asyncpg
+            # 报错可带SQL语句/DSN片段, 放大泄露面); 细节只进服务端日志/Sentry
             return JSONResponse(
                 status_code=500,
                 content={
                     "success": False,
                     "error": {
                         "code": "server.error",
-                        "message": f"{type(exc).__name__}: {exc}",
+                        "message": "Internal server error",
                     },
                 },
             )
@@ -120,15 +140,17 @@ class UnifiedErrorMiddleware(BaseHTTPMiddleware):
 app.add_middleware(UnifiedErrorMiddleware)
 app.add_middleware(
     CORSMiddleware,
+    # 2026-09-02 安全修复: ① 通配字符串"https://*.vercel.app"在starlette是
+    # 字面匹配、从未生效(死配置); ② allow_credentials=True + 任意*.pages.dev
+    # 正则 = 免费注册的Cloudflare Pages域成为信任源, 一旦改cookie认证即全量
+    # 账号接管。当前前端用localStorage+Bearer(跨源JS读不到token), 不依赖
+    # credentials; 去掉credentials+保留显式origin列表。
     allow_origins=[
         "http://localhost:3000",
         "https://quantflow-two.vercel.app",
         "https://quantflow.pages.dev",
-        "https://*.vercel.app",
-        "https://*.pages.dev",
     ],
-    allow_origin_regex=r"https://.*\.(vercel|pages)\.dev",
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

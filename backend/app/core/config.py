@@ -69,4 +69,12 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    # 2026-09-02 安全修复: 公开默认JWT_SECRET会导致任意伪造token(认证绕过),
+    # 生产漏配环境变量时启动即失败而不是带病运行
+    if not s.DEBUG and s.JWT_SECRET == "change-me-to-a-random-secret-at-least-32-chars":
+        raise RuntimeError(
+            "JWT_SECRET 未配置(仍是公开默认值)。请设置环境变量 JWT_SECRET "
+            "为至少32字符的随机值后重启。"
+        )
+    return s

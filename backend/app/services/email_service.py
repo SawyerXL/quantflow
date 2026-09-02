@@ -7,6 +7,7 @@ Used for transactional emails: welcome, upgrade reminders, payment failures.
 
 from __future__ import annotations
 
+import html
 import logging
 
 from app.core.config import get_settings
@@ -20,6 +21,8 @@ FRONTEND_URL = "https://quantflow.io"
 
 async def send_welcome_email(email: str, name: str) -> None:
     """Send a welcome email after registration."""
+    # 2026-09-02 修复: name是用户可控输入, 未转义拼进HTML = 邮件内注入
+    name = html.escape(name or "there", quote=True)
     html = f"""
     <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto;">
       <h1 style="color: #10b981;">Welcome to QuantFlow, {name}!</h1>
@@ -87,7 +90,8 @@ async def send_payment_failed_email(email: str) -> None:
 
 async def send_reset_email(email: str, name: str, reset_url: str) -> None:
     """Send a password reset email."""
-    name_display = name or "there"
+    # 2026-09-02 修复: 用户可控name转义(邮件内HTML注入)
+    name_display = html.escape(name or "there", quote=True)
     html = f"""
     <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;">
       <h2 style="color: #18181b;">Reset your password</h2>
