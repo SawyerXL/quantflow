@@ -122,23 +122,28 @@ async def check_rate_limit(
         import redis.asyncio as aioredis
 
         r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
-        # Remove old entries, add current, count
-        pipe = r.pipeline()
-        pipe.zremrangebyscore(user_key, 0, window_start)
-        pipe.zadd(user_key, {str(now): now})
-        pipe.zcard(user_key)
-        pipe.expire(user_key, settings.RATE_LIMIT_WINDOW_SECONDS + 60)
-        _, _, count, _ = await pipe.execute()
+        try:
+            # Remove old entries, add current, count
+            pipe = r.pipeline()
+            pipe.zremrangebyscore(user_key, 0, window_start)
+            pipe.zadd(user_key, {str(now): now})
+            pipe.zcard(user_key)
+            pipe.expire(user_key, settings.RATE_LIMIT_WINDOW_SECONDS + 60)
+            _, _, count, _ = await pipe.execute()
 
-        if count > max_requests:
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "code": "rate_limit.exceeded",
-                    "message": f"Rate limit exceeded: {max_requests} requests per hour. "
-                               f"Upgrade to Pro for unlimited access.",
-                },
-            )
+            if count > max_requests:
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "code": "rate_limit.exceeded",
+                        "message": f"Rate limit exceeded: {max_requests} requests per hour. "
+                                   f"Upgrade to Pro for unlimited access.",
+                    },
+                )
+        finally:
+            # 2026-09-02 修复: 原代码每请求新建连接且从不关闭(连接泄漏);
+            # 多worker长跑后fd耗尽
+            await r.aclose()
     except Exception as exc:
         if isinstance(exc, HTTPException):
             raise
